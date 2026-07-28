@@ -1,9 +1,9 @@
 /**
- * `similex.hello` — a minimal example content widget.
+ * `sienna.hello` — a minimal example content widget.
  *
  * Classic script, injected on demand by the widget registry.
  */
-$.widget('similex.hello', {
+$.widget('sienna.hello', {
   options: {
     name: 'world',
   },
@@ -27,4 +27,4 @@ $.widget('similex.hello', {
   },
 });
 
-window.Similex.widgetRegistry._loaded('hello', 'hello');
+window.Sienna.widgetRegistry._loaded('hello', 'hello');

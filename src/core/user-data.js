@@ -1,5 +1,5 @@
 /**
- * `Similex.userData` — the single global container for all user data.
+ * `Sienna.userData` — the single global container for all user data.
  *
  * It is a plain nested object addressed by **path strings** ('models/graph-2',
  * 'models/graph-2/count'). The framework never knows what properties exist;
@@ -9,7 +9,7 @@
  * Every mutation (`set`/`update`/`remove`/`fromJSON`) does three things:
  *   1. changes the in-memory tree,
  *   2. **autosaves** the whole store to localStorage (guarded, works on file://)
- *      under `similex.userData.v1` — separate from the workspace/session slot,
+ *      under `sienna.userData.v1` — separate from the workspace/session slot,
  *   3. emits a change `{ type, ref, value, prior }` to matching subscribers.
  *
  * `subscribe(refPrefix, fn)` is the substrate a future pub/sub layer will use:
@@ -24,10 +24,10 @@
  *   - Intermediate objects are auto-created on `set` ('a/b/c' makes a, b).
  *   - Classic script, plain JS (no jQuery). Load after `persistence.js`.
  */
-(function (Similex) {
+(function (Sienna) {
   'use strict';
 
-  var KEY = 'similex.userData.v1';
+  var KEY = 'sienna.userData.v1';
 
   var data = {}; // the whole store
   var subs = []; // [{ prefix, fn }]
@@ -74,7 +74,7 @@
     if (batching > 0) {
       batchDirty = true;
     } else {
-      Similex.persistence.writeJSON(KEY, data);
+      Sienna.persistence.writeJSON(KEY, data);
     }
   }
 
@@ -91,7 +91,7 @@
     persist();
   }
 
-  Similex.userData = {
+  Sienna.userData = {
     // ---- read ----
 
     /** @param {string} [ref] path ('' or omitted => whole store) */
@@ -196,7 +196,7 @@
         batching--;
         if (batching === 0 && batchDirty) {
           batchDirty = false;
-          Similex.persistence.writeJSON(KEY, data);
+          Sienna.persistence.writeJSON(KEY, data);
         }
       }
     },
@@ -234,7 +234,7 @@
 
     /** Re-read the whole store from localStorage (silent; no events). */
     load: function () {
-      var loaded = Similex.persistence.readJSON(KEY);
+      var loaded = Sienna.persistence.readJSON(KEY);
       data = loaded && typeof loaded === 'object' ? loaded : {};
       return data;
     },
@@ -242,10 +242,10 @@
     /** Wipe the store and its persisted slot (silent). */
     clear: function () {
       data = {};
-      Similex.persistence.removeKey(KEY);
+      Sienna.persistence.removeKey(KEY);
     },
   };
 
   // Load any persisted user data at startup.
-  Similex.userData.load();
-})(window.Similex);
+  Sienna.userData.load();
+})(window.Sienna);

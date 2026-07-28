@@ -1,5 +1,5 @@
 /**
- * `Similex.models` — the application's thin model layer over `Similex.userData`.
+ * `Sienna.models` — the application's thin model layer over `Sienna.userData`.
  *
  * This is the ONE place that knows user data is organised as a `models` map;
  * the generic core (`user-data.js`) only ever speaks path strings. A "model" is
@@ -9,16 +9,16 @@
  * localStorage is the live, autosaved store (via userData), so there is no
  * "Save" — durability is continuous. This layer adds model *lifecycle* (new,
  * copy, remove, rename), a notion of the *current* model, and *file*
- * import/export via the shared `Similex.files` helpers (Blob download +
+ * import/export via the shared `Sienna.files` helpers (Blob download +
  * <input type=file>, because file:// forbids silent writes).
  *
  * Classic script, plain JS. Load after `user-data.js` and `files.js`, before
  * `main.js`.
  */
-(function (Similex) {
+(function (Sienna) {
   'use strict';
 
-  var U = Similex.userData;
+  var U = Sienna.userData;
   var current = null; // ref of the active model, or null
 
   // Mint a fresh model id ('m0', 'm1', …) not colliding with existing ones.
@@ -35,7 +35,7 @@
     return 'Model ' + (Number(id.slice(1)) + 1);
   }
 
-  Similex.models = {
+  Sienna.models = {
     /** @returns {Array<{id, ref, name}>} the models, in id order */
     list: function () {
       return U.keys('models').map(function (id) {
@@ -104,12 +104,12 @@
       var m = U.get(ref);
       if (!m) return;
       var name = (m.name || ref.replace(/\//g, '-')) + '.json';
-      Similex.files.download(name, U.toJSON(ref));
+      Sienna.files.download(name, U.toJSON(ref));
     },
 
     /** Pick a .json file and load it as a new model (fresh id); becomes current. */
     importFile: function () {
-      Similex.files.pickFile(function (obj) {
+      Sienna.files.pickFile(function (obj) {
         if (!obj || typeof obj !== 'object') return;
         var id = mintId();
         obj.id = id;
@@ -121,16 +121,16 @@
 
     /** Download the whole userData store. */
     exportAll: function () {
-      Similex.files.download('similex-userData.json', U.toJSON('') || {});
+      Sienna.files.download('sienna-userData.json', U.toJSON('') || {});
     },
 
     /** Pick a .json file and replace the whole userData store. */
     importAll: function () {
-      Similex.files.pickFile(function (obj) {
+      Sienna.files.pickFile(function (obj) {
         if (!obj || typeof obj !== 'object') return;
         U.fromJSON('', obj);
         current = null;
       });
     },
   };
-})(window.Similex);
+})(window.Sienna);

@@ -3,20 +3,20 @@
  *
  * The menu is rebuilt from data:
  *   - the Widgets submenu comes from the widget registry (src/widgets/index.js),
- *   - the File ▸ Open submenu comes from the model list (Similex.models),
+ *   - the File ▸ Open submenu comes from the model list (Sienna.models),
  * so this file holds no per-widget or per-model knowledge. The menu is rebuilt
  * whenever the set of models changes (a userData change under `models`).
  *
  * Classic script — runs after all core scripts have loaded. No imports/exports.
  */
-(function (Similex) {
+(function (Sienna) {
   'use strict';
 
-  var app = new Similex.App('#app');
-  var models = Similex.models;
+  var app = new Sienna.App('#app');
+  var models = Sienna.models;
 
   // One Widgets entry per registered widget, in registration order.
-  var widgetItems = Similex.widgetRegistry.list().map(function (w) {
+  var widgetItems = Sienna.widgetRegistry.list().map(function (w) {
     return {
       label: w.label,
       onSelect: function () {
@@ -37,14 +37,14 @@
   function byId(id) {
     return app.$workspace.workspace('panelById', id);
   }
-  Similex.actions.onReplay('panel.add', function (e) {
+  Sienna.actions.onReplay('panel.add', function (e) {
     return app.addPanel({
       title: e.payload.title,
       widget: e.payload.widget || undefined,
       ref: e.payload.ref || '',
     });
   });
-  Similex.actions.onReplay('panel.close', function (e) {
+  Sienna.actions.onReplay('panel.close', function (e) {
     var $p = byId(e.target);
     if ($p) $p.panel('close');
   });
@@ -52,24 +52,24 @@
     var $p = byId(e.target);
     if ($p) $p.panel('setGeometry', e.payload);
   }
-  Similex.actions.onReplay('panel.move', replayGeometry);
-  Similex.actions.onReplay('panel.resize', replayGeometry);
-  Similex.actions.onReplay('panel.minimize', function (e) {
+  Sienna.actions.onReplay('panel.move', replayGeometry);
+  Sienna.actions.onReplay('panel.resize', replayGeometry);
+  Sienna.actions.onReplay('panel.minimize', function (e) {
     var $p = byId(e.target);
     if ($p) $p.panel('minimize', !!e.payload.minimized);
   });
-  Similex.actions.onReplay('panel.maximize', function (e) {
+  Sienna.actions.onReplay('panel.maximize', function (e) {
     var $p = byId(e.target);
     if ($p) $p.panel('maximize', !!e.payload.maximized);
   });
 
   // Replay the recorded session onto a clean slate (destroys current state).
   function replaySession() {
-    var session = Similex.actions.log();
+    var session = Sienna.actions.log();
     app.clearWorkspace();
-    Similex.userData.clear();
-    Similex.history.clear();
-    Similex.actions.replay(session);
+    Sienna.userData.clear();
+    Sienna.history.clear();
+    Sienna.actions.replay(session);
   }
 
   // File ▸ Open lists the current models; empty => a single inert placeholder.
@@ -122,8 +122,8 @@
       {
         label: 'Edit',
         items: [
-          { label: 'Undo', onSelect: function () { Similex.history.undo(); } },
-          { label: 'Redo', onSelect: function () { Similex.history.redo(); } },
+          { label: 'Undo', onSelect: function () { Sienna.history.undo(); } },
+          { label: 'Redo', onSelect: function () { Sienna.history.redo(); } },
         ],
       },
       { label: 'Widgets', items: widgetItems },
@@ -134,14 +134,14 @@
           {
             label: 'Export log',
             onSelect: function () {
-              Similex.files.download('similex-log.json', Similex.actions.toJSON());
+              Sienna.files.download('sienna-log.json', Sienna.actions.toJSON());
             },
           },
           {
             label: 'Import log',
             onSelect: function () {
-              Similex.files.pickFile(function (arr) {
-                Similex.actions.fromJSON(arr);
+              Sienna.files.pickFile(function (arr) {
+                Sienna.actions.fromJSON(arr);
               });
             },
           },
@@ -173,7 +173,7 @@
     );
   }
   var lastSignature = modelsSignature();
-  Similex.userData.subscribe('models', function () {
+  Sienna.userData.subscribe('models', function () {
     var sig = modelsSignature();
     if (sig === lastSignature) return;
     lastSignature = sig;
@@ -191,10 +191,10 @@
     var mod = e.ctrlKey || e.metaKey;
     if (mod && key === 'z' && !e.shiftKey) {
       e.preventDefault();
-      Similex.history.undo();
+      Sienna.history.undo();
     } else if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) {
       e.preventDefault();
-      Similex.history.redo();
+      Sienna.history.redo();
     }
   });
 
@@ -203,4 +203,4 @@
 
   // Handy for tinkering from the browser console.
   window.app = app;
-})(window.Similex);
+})(window.Sienna);

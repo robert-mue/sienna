@@ -8,14 +8,14 @@
  * no changes to main.js or any generic code.
  *
  * To add a widget: create `src/widgets/<name>.js` that calls
- * `$.widget('similex.<name>', {...})` and, at the end,
- * `Similex.widgetRegistry._loaded('<name>', '<name>')`; then add a line here.
+ * `$.widget('sienna.<name>', {...})` and, at the end,
+ * `Sienna.widgetRegistry._loaded('<name>', '<name>')`; then add a line here.
  *
  * Classic script; no imports/exports.
  */
-(function (Similex) {
+(function (Sienna) {
   'use strict';
-  var reg = Similex.widgetRegistry;
+  var reg = Sienna.widgetRegistry;
 
   reg.register('clock', {
     src: 'src/widgets/clock.js',
@@ -26,7 +26,7 @@
     src: 'src/widgets/hello.js',
     label: 'Greeting',
     title: 'Greeting',
-    options: { name: 'similex' },
+    options: { name: 'sienna' },
   });
   reg.register('counter', {
     src: 'src/widgets/counter.js',
@@ -43,4 +43,4 @@
     label: 'Colour picker',
     title: 'Colour',
   });
-})(window.Similex);
+})(window.Sienna);

@@ -1,10 +1,10 @@
 /**
- * `similex.clock` — a live clock content widget.
+ * `sienna.clock` — a live clock content widget.
  *
  * Classic script, injected on demand by the widget registry. Uses the global
  * jQuery (`$`); registers its plugin method name at the end.
  */
-$.widget('similex.clock', {
+$.widget('sienna.clock', {
   options: {
     hour12: false,
   },
@@ -32,4 +32,4 @@ $.widget('similex.clock', {
   },
 });
 
-window.Similex.widgetRegistry._loaded('clock', 'clock');
+window.Sienna.widgetRegistry._loaded('clock', 'clock');

@@ -1,6 +1,6 @@
 # Design
 
-A decision record and restart guide for **similex** — the whole story, from the
+A decision record and restart guide for **sienna** — the whole story, from the
 base single-page app through the later user-data / logging / undo / replay layer.
 `CLAUDE.md` documents *what each module is and how to work in the repo*; this file
 captures *why it's shaped this way* and *how we got here*, so a fresh session
@@ -20,7 +20,7 @@ complete** (2026-07-22). Three deferred tasks remain — see §14.
 
 ## 1. Concept and shape
 
-similex is a **customisable menu** plus a **workspace** that holds **panels**.
+sienna is a **customisable menu** plus a **workspace** that holds **panels**.
 Each panel is a titlebar + a content area, and the content is a **widget built
 with the jQuery UI widget factory**. Panels are draggable, resizable,
 minimisable, maximisable, closable, and their layout + contents persist across
@@ -31,13 +31,13 @@ front-end framework, no components beyond the jQuery UI widget factory.
 
 ## 2. Why static — the constraint that shaped everything
 
-similex runs by **opening `index.html` directly** (`file://`) — **no build, no
+sienna runs by **opening `index.html` directly** (`file://`) — **no build, no
 server, no npm**. This one requirement drove most of the base-app decisions,
 because browsers restrict `file://`:
 
 - **Classic `<script>` tags only — no ES modules, no `import`/`export`.** Browsers
   block ES modules (and `fetch`/`import()`) over `file://`. So modules communicate
-  through a **single global `window.Similex`** namespace, and jQuery is the global
+  through a **single global `window.Sienna`** namespace, and jQuery is the global
   `$`/`jQuery` from vendored scripts.
 - **Vendored libraries.** jQuery and a hand-assembled subset of jQuery UI live in
   `vendor/` (no package manager). The jQuery UI bundle is only the pieces needed:
@@ -56,14 +56,14 @@ primary, not incidental.)
 
 "Widgets load dynamically" is met by **injecting a classic `<script>` tag** on
 first use — **not** `import()`, which is blocked over `file://`. When the injected
-script runs, it self-registers via `$.widget('similex.<name>', …)` and reports the
+script runs, it self-registers via `$.widget('sienna.<name>', …)` and reports the
 plugin method name back to the registry. Load order in `index.html` matters and is
 dependency-ordered; content-widget scripts are the exception — they're *not*
 listed, they're injected on demand.
 
 ## 4. The widget registry and manifest (DRY)
 
-`Similex.widgetRegistry` is the **single source of truth** for which widgets
+`Sienna.widgetRegistry` is the **single source of truth** for which widgets
 exist: each `register(name, { src, label, title, options })` records a widget's
 script URL plus its menu presentation. `src/widgets/index.js` is the **manifest** —
 the one place listing the app's widgets.
@@ -77,7 +77,7 @@ avoids duplicating the list (DRY). The same principle later shaped the File menu
 
 ## 5. Persistence
 
-Layout persists via `Similex.persistence`: a guarded localStorage read/write of
+Layout persists via `Sienna.persistence`: a guarded localStorage read/write of
 the serialised workspace under a versioned key. "Guarded" means a disabled / full
 / corrupt store (or a browser restricting storage on `file://`) degrades to "no
 persistence" rather than throwing. The workspace serialises each panel (widget,
@@ -96,9 +96,9 @@ its contents) so a reload round-trips the whole workspace.
 
 ## 7. Content-widget contract (base)
 
-A content widget: (1) registers itself with `$.widget('similex.<name>', {…})`
+A content widget: (1) registers itself with `$.widget('sienna.<name>', {…})`
 using the global `$`; (2) at the end calls
-`Similex.widgetRegistry._loaded('<name>', '<method>')`; (3) is listed in the
+`Sienna.widgetRegistry._loaded('<name>', '<method>')`; (3) is listed in the
 manifest. Optionally it implements `state()` returning a JSON-serialisable object
 merged into the panel's stored options for persistence. Part II extends this
 contract for widgets that hold shared *user data* (see §11).
@@ -152,7 +152,7 @@ Part II.
 
 | term | meaning |
 |---|---|
-| **`Similex.userData`** | the single global container of *all* user data. Autosaved to localStorage. Framework speaks only path strings into it. |
+| **`Sienna.userData`** | the single global container of *all* user data. Autosaved to localStorage. Framework speaks only path strings into it. |
 | **model** | one entry, e.g. `userData.models['graph-2']`. `models` is just an *app-specific property* of `userData` (which could also hold e.g. a shared `ontology`) — the generic core never names it. |
 | **`ref`** | a **path string** on a panel addressing what it views, e.g. `'models/graph-2'`. Replaced the old opaque `context` object. |
 | **`id`** | a panel's stable instance id (`'p3'`). **`id` names the panel; `ref` names what it views** — several panels may share one `ref`. |
@@ -209,8 +209,8 @@ it `userData` would read as "this panel's data," the one thing it isn't.
   mutation writes through to localStorage, so there is **no "Save"** — durability
   is continuous. The File menu is about model *lifecycle* and *file interchange*
   (export/import), not saving. Two separate localStorage domains that never mix:
-  session/layout (`similex.workspace.v1`, as before) and user data
-  (`similex.userData.v1`). **userData excludes session state** by decision.
+  session/layout (`sienna.workspace.v1`, as before) and user data
+  (`sienna.userData.v1`). **userData excludes session state** by decision.
 
 - **Pub/sub is opt-in and was explicitly gated.** A widget lives-updates by
   calling `_watchModel(handler)` once; it re-renders on any change at/under its
@@ -237,17 +237,17 @@ Each phase was a branch → verified in headless Chrome → fast-forward-merged 
 | # | commit | delivered |
 |---|--------|-----------|
 | 0 | `ed865d1` | rename panel `context` → `ref` (path string) + stable panel `id` |
-| 1 | `59a4139` | `Similex.userData` store — autosave + change events (pub/sub substrate); `persistence.js` generalised with `readJSON/writeJSON/removeKey` |
-| 2 | `b5a2a37` | `Similex.models` app layer + File menu (plumbing only) |
-| 3 | `35c5a5e` | `Similex.actions` dispatch spine + recorder; auto-capture in menu/panel/workspace |
-| 4 | `7223be6` | `$.similex.widgetBase` + model-bound `counter` pilot; File New/Open open a model view |
+| 1 | `59a4139` | `Sienna.userData` store — autosave + change events (pub/sub substrate); `persistence.js` generalised with `readJSON/writeJSON/removeKey` |
+| 2 | `b5a2a37` | `Sienna.models` app layer + File menu (plumbing only) |
+| 3 | `35c5a5e` | `Sienna.actions` dispatch spine + recorder; auto-capture in menu/panel/workspace |
+| 4 | `7223be6` | `$.sienna.widgetBase` + model-bound `counter` pilot; File New/Open open a model view |
 | 4.5 | `bd56491` | `_watchModel` pub/sub — live sibling sync |
-| 5 | `554458f` | `Similex.history` — transaction-grouped, userData-scoped undo/redo; Edit menu + Ctrl/Cmd-Z |
-| 6 | `40ad6d6` | `actions.replay` + `onReplay`; Session menu; shared `Similex.files`; `workspace.panelById` |
+| 5 | `554458f` | `Sienna.history` — transaction-grouped, userData-scoped undo/redo; Edit menu + Ctrl/Cmd-Z |
+| 6 | `40ad6d6` | `actions.replay` + `onReplay`; Session menu; shared `Sienna.files`; `workspace.panelById` |
 
 ## 13. How it was verified (no test suite)
 
-similex has **no automated tests, no build, no server** — it runs from `file://`.
+sienna has **no automated tests, no build, no server** — it runs from `file://`.
 Each phase was checked by driving the real app in **headless Chrome**:
 
 ```
@@ -266,8 +266,8 @@ sandbox, hence the `--dump-dom` harness. Note: `node` is via **nvm** — `source
 1. **Interactive tutorial** — a consumer of the replay stream that tells the user
    the next step and checks they perform it.
 2. **DOM-delegation fallback** — auto-log clicks in widgets that don't extend
-   `$.similex.widgetBase`.
-3. **Layout-scope undo** — flip `Similex.history.scope` to `'all'` so panel
+   `$.sienna.widgetBase`.
+3. **Layout-scope undo** — flip `Sienna.history.scope` to `'all'` so panel
    moves/opens/closes undo too (the seam exists).
 
 ## 15. Restarting

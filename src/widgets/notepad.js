@@ -1,10 +1,10 @@
 /**
- * `similex.notepad` — a free-text scratch area. `notepad('text')` gets/sets the
+ * `sienna.notepad` — a free-text scratch area. `notepad('text')` gets/sets the
  * content; emits `notepadchange` on input.
  *
  * Classic script, injected on demand by the widget registry.
  */
-$.widget('similex.notepad', {
+$.widget('sienna.notepad', {
   options: {
     text: '',
     placeholder: 'Type here…',
@@ -41,4 +41,4 @@ $.widget('similex.notepad', {
   },
 });
 
-window.Similex.widgetRegistry._loaded('notepad', 'notepad');
+window.Sienna.widgetRegistry._loaded('notepad', 'notepad');

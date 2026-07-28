@@ -1,5 +1,5 @@
 /**
- * `similex.menu` — a customisable menu bar driven by a config of items. Each
+ * `sienna.menu` — a customisable menu bar driven by a config of items. Each
  * item has a `label` and either an `onSelect(item, widget)` callback, a nested
  * `items` array (submenu), or both.
  *
@@ -13,7 +13,7 @@
  *
  * Classic script: uses the global jQuery (`$`); no imports/exports.
  */
-$.widget('similex.menu', {
+$.widget('sienna.menu', {
   options: {
     /** @type {Array<{ label: string, onSelect?: Function, items?: Array }>} */
     items: [],
@@ -77,8 +77,8 @@ $.widget('similex.menu', {
           // and any userData effects it causes are captured. (Guarded so the
           // menu still works if actions.js isn't loaded.)
           const invoke = () => item.onSelect(item, this);
-          if (Similex.actions) {
-            Similex.actions.dispatch(
+          if (Sienna.actions) {
+            Sienna.actions.dispatch(
               { type: 'menu.select', target: item.label, payload: {} },
               invoke,
             );

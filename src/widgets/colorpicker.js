@@ -1,10 +1,10 @@
 /**
- * `similex.colorpicker` — a native colour input with a live swatch and hex
+ * `sienna.colorpicker` — a native colour input with a live swatch and hex
  * readout. `colorpicker('value')` gets/sets the colour; emits `colorpickerchange`.
  *
  * Classic script, injected on demand by the widget registry.
  */
-$.widget('similex.colorpicker', {
+$.widget('sienna.colorpicker', {
   options: {
     value: '#4c8bf5',
   },
@@ -52,4 +52,4 @@ $.widget('similex.colorpicker', {
   },
 });
 
-window.Similex.widgetRegistry._loaded('colorpicker', 'colorpicker');
+window.Sienna.widgetRegistry._loaded('colorpicker', 'colorpicker');

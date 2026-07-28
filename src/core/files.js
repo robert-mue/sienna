@@ -1,5 +1,5 @@
 /**
- * `Similex.files` — tiny shared helpers for file interchange under `file://`,
+ * `Sienna.files` — tiny shared helpers for file interchange under `file://`,
  * where the browser cannot write files silently. `download` triggers a Blob
  * download; `pickFile` opens a file chooser and hands back the parsed JSON.
  *
@@ -8,10 +8,10 @@
  *
  * Classic script, plain JS. Load before anything that saves/loads files.
  */
-(function (Similex) {
+(function (Sienna) {
   'use strict';
 
-  Similex.files = {
+  Sienna.files = {
     /** Download `obj` as pretty-printed JSON named `filename`. */
     download: function (filename, obj) {
       try {
@@ -54,4 +54,4 @@
       input.click();
     },
   };
-})(window.Similex);
+})(window.Sienna);

@@ -1,5 +1,5 @@
 /**
- * `similex.workspace` — the region that holds panels. Panels are added
+ * `sienna.workspace` — the region that holds panels. Panels are added
  * imperatively; each hosts a dynamically loaded content widget.
  *
  * The workspace keeps a metadata entry per panel (widget name, title, options)
@@ -14,10 +14,10 @@
  *   await $ws.workspace('restore', state);
  *   $ws.workspace('clear');
  *
- * Classic script: uses the global jQuery (`$`) and `Similex.widgetRegistry`;
+ * Classic script: uses the global jQuery (`$`) and `Sienna.widgetRegistry`;
  * no imports/exports. Load panel.js before this file.
  */
-$.widget('similex.workspace', {
+$.widget('sienna.workspace', {
   options: {
     /** @type {(() => void) | null} */
     onChange: null,
@@ -44,8 +44,8 @@ $.widget('similex.workspace', {
    * action layer isn't loaded. Keeps all suspend logic in one place.
    */
   _dispatch(type, panelId, payload) {
-    if (this._suspend || this._clearing || !Similex.actions) return;
-    Similex.actions.dispatch({ type: type, target: panelId, payload: payload });
+    if (this._suspend || this._clearing || !Sienna.actions) return;
+    Sienna.actions.dispatch({ type: type, target: panelId, payload: payload });
   },
 
   /**
@@ -115,7 +115,7 @@ $.widget('similex.workspace', {
     this._entries.push(entry);
 
     if (widget) {
-      const method = await Similex.widgetRegistry.loadWidget(widget);
+      const method = await Sienna.widgetRegistry.loadWidget(widget);
       entry.method = method;
       $panel.panel('content')[method]({ ...options });
     }

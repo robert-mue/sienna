@@ -1,7 +1,7 @@
 /**
- * `Similex.history` — unlimited undo/redo, riding the action stream.
+ * `Sienna.history` — unlimited undo/redo, riding the action stream.
  *
- * It subscribes to `Similex.actions`: every dispatched entry that carries
+ * It subscribes to `Sienna.actions`: every dispatched entry that carries
  * userData `changes` becomes ONE undoable transaction (so a single user action
  * that touched several paths undoes as one step). Actions with no data effect
  * (panel move/resize/min/maximise, an empty menu selection) are ignored — the
@@ -19,7 +19,7 @@
  *
  * Classic script. Load after `actions.js` (and `user-data.js`).
  */
-(function (Similex) {
+(function (Sienna) {
   'use strict';
 
   var undoStack = [];
@@ -28,15 +28,15 @@
   // Apply one change's target value: absent (undefined) => remove, else set.
   function applyValue(ref, value) {
     if (value === undefined) {
-      Similex.userData.remove(ref);
+      Sienna.userData.remove(ref);
     } else {
-      Similex.userData.set(ref, value);
+      Sienna.userData.set(ref, value);
     }
   }
 
   // Reverse a transaction: walk changes back-to-front to their prior values.
   function revert(entry) {
-    Similex.userData.batch(function () {
+    Sienna.userData.batch(function () {
       for (var i = entry.changes.length - 1; i >= 0; i--) {
         applyValue(entry.changes[i].ref, entry.changes[i].prior);
       }
@@ -45,14 +45,14 @@
 
   // Re-apply a transaction: front-to-back to their new values.
   function reapply(entry) {
-    Similex.userData.batch(function () {
+    Sienna.userData.batch(function () {
       for (var i = 0; i < entry.changes.length; i++) {
         applyValue(entry.changes[i].ref, entry.changes[i].value);
       }
     });
   }
 
-  Similex.history = {
+  Sienna.history = {
     /** Fixed to 'userData' for now (the seam for undoing layout too, later). */
     scope: 'userData',
 
@@ -92,10 +92,10 @@
   };
 
   // Record every data-changing action as one transaction; a new one drops redo.
-  Similex.actions.subscribe(function (entry) {
+  Sienna.actions.subscribe(function (entry) {
     if (entry && entry.changes && entry.changes.length) {
       undoStack.push(entry);
       redoStack = [];
     }
   });
-})(window.Similex);
+})(window.Sienna);

@@ -1,6 +1,6 @@
 /**
  * Registry of dynamically loadable content widgets, exposed as
- * `Similex.widgetRegistry`.
+ * `Sienna.widgetRegistry`.
  *
  * Because the app runs from file:// with no bundler, dynamic loading is done by
  * INJECTING a classic <script> tag (ES `import()` is blocked over file://).
@@ -8,16 +8,16 @@
  * metadata used to build the menu (label, panel title, default options), so the
  * registry is the single source of truth for "which widgets exist". On first
  * use the script is injected; when it runs it self-registers via `$.widget(...)`
- * and calls `Similex.widgetRegistry._loaded(name, method)` to record the jQuery
+ * and calls `Sienna.widgetRegistry._loaded(name, method)` to record the jQuery
  * UI plugin method name to invoke on a panel's content element.
  */
-(function (Similex) {
+(function (Sienna) {
   'use strict';
 
   var registry = {}; // name -> { src, label, title, options, method, promise }
   var order = []; // registration order, for stable menu ordering
 
-  Similex.widgetRegistry = {
+  Sienna.widgetRegistry = {
     /**
      * @param {string} name
      * @param {{ src: string, label?: string, title?: string, options?: object }} spec
@@ -111,4 +111,4 @@
       return entry.promise;
     },
   };
-})(window.Similex);
+})(window.Sienna);

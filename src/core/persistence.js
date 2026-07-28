@@ -1,5 +1,5 @@
 /**
- * localStorage persistence, exposed as `Similex.persistence`.
+ * localStorage persistence, exposed as `Sienna.persistence`.
  *
  * Provides generic guarded JSON slots (`readJSON`/`writeJSON`/`removeKey`) used
  * by any module that needs to persist under `file://`, plus the workspace's own
@@ -8,12 +8,12 @@
  * that restricts storage on file://) degrades to "no persistence" rather than
  * throwing.
  */
-(function (Similex) {
+(function (Sienna) {
   'use strict';
 
-  var KEY = 'similex.workspace.v1';
+  var KEY = 'sienna.workspace.v1';
 
-  Similex.persistence = {
+  Sienna.persistence = {
     /** Guarded `JSON.stringify` write to an arbitrary key. */
     writeJSON: function (key, value) {
       try {
@@ -56,4 +56,4 @@
       this.removeKey(KEY);
     },
   };
-})(window.Similex);
+})(window.Sienna);

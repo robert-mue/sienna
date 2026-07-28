@@ -1,5 +1,5 @@
 /**
- * `Similex.actions` — the single dispatch point for user actions, and the
+ * `Sienna.actions` — the single dispatch point for user actions, and the
  * recorder that turns them into a JSON log (for replay-as-video, UI testing,
  * and a future interactive tutorial).
  *
@@ -8,7 +8,7 @@
  *   - `action` = `{ type, target?, payload? }` — semantic, hand-editable metadata
  *     (e.g. `{ type: 'counter.increment', target: 'p3', payload: { by: 1 } }`).
  *   - `run?` — an optional function performing the effect. While it runs, every
- *     `Similex.userData` change is captured into the entry's `changes` array
+ *     `Sienna.userData` change is captured into the entry's `changes` array
  *     (a userData "transaction"), which is what a later undo layer reverses and
  *     what lets the log audit its own data effects.
  *
@@ -24,7 +24,7 @@
  * Classic script, plain JS. Load after `user-data.js`, before the widgets that
  * dispatch (`panel`/`workspace`/`menu`).
  */
-(function (Similex) {
+(function (Sienna) {
   'use strict';
 
   var log = [];
@@ -36,11 +36,11 @@
 
   // Default replay for a data-changing entry: re-apply its captured values.
   function applyChanges(entry) {
-    Similex.userData.batch(function () {
+    Sienna.userData.batch(function () {
       for (var i = 0; i < entry.changes.length; i++) {
         var c = entry.changes[i];
-        if (c.value === undefined) Similex.userData.remove(c.ref);
-        else Similex.userData.set(c.ref, c.value);
+        if (c.value === undefined) Sienna.userData.remove(c.ref);
+        else Sienna.userData.set(c.ref, c.value);
       }
     });
   }
@@ -55,7 +55,7 @@
     }
   }
 
-  Similex.actions = {
+  Sienna.actions = {
     /**
      * Dispatch (and record) a user action.
      * @param {{type:string, target?:*, payload?:object}} action
@@ -78,11 +78,11 @@
           run();
         } else {
           capture = entry.changes;
-          var unsub = Similex.userData.subscribe('', function (c) {
+          var unsub = Sienna.userData.subscribe('', function (c) {
             capture.push({ ref: c.ref, prior: c.prior, value: c.value });
           });
           try {
-            Similex.userData.batch(run); // one persist for the whole action
+            Sienna.userData.batch(run); // one persist for the whole action
           } finally {
             unsub();
             capture = null;
@@ -210,4 +210,4 @@
       });
     },
   };
-})(window.Similex);
+})(window.Sienna);

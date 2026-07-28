@@ -1,5 +1,5 @@
 /*!
- * similex vendored jQuery UI 1.13.x subset — concatenated UMD source modules.
+ * sienna vendored jQuery UI 1.13.x subset — concatenated UMD source modules.
  * Included (dependency order): version, widget (factory), mouse, data,
  * disable-selection, plugin, scroll-parent, draggable, resizable.
  * With a global jQuery present, each module's UMD wrapper calls factory(jQuery).

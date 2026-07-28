@@ -1,8 +1,8 @@
 /**
- * `$.similex.widgetBase` — an optional base for content widgets that bind to a
+ * `$.sienna.widgetBase` — an optional base for content widgets that bind to a
  * model. Extend it instead of the bare widget factory:
  *
- *     $.widget('similex.counter', $.similex.widgetBase, { ...widget... });
+ *     $.widget('sienna.counter', $.sienna.widgetBase, { ...widget... });
  *
  * It gives a widget three things, so the whole authoring contract is one
  * sentence — *put shared data in the model via `_set`, and wrap user actions in
@@ -23,10 +23,10 @@
  *
  * Classic script. Load after `actions.js`, before any widget is injected.
  */
-(function ($, Similex) {
+(function ($, Sienna) {
   'use strict';
 
-  $.widget('similex.widgetBase', {
+  $.widget('sienna.widgetBase', {
     /** The host panel element (the `.slx-panel` ancestor of the content div). */
     _panel: function () {
       if (!this._panelEl || !this._panelEl.length) {
@@ -54,21 +54,21 @@
 
     /** @returns the whole model object (undefined when unbound) */
     _model: function () {
-      return this._bound() ? Similex.userData.get(this._ref()) : undefined;
+      return this._bound() ? Sienna.userData.get(this._ref()) : undefined;
     },
 
     /** Read a property under the model ('sub'), or the whole model (no arg). */
     _get: function (sub) {
       var r = this._ref();
       if (!r) return undefined;
-      return Similex.userData.get(sub ? r + '/' + sub : r);
+      return Sienna.userData.get(sub ? r + '/' + sub : r);
     },
 
     /** Write a property under the model; no-op (returns undefined) when unbound. */
     _set: function (sub, value) {
       var r = this._ref();
       if (!r) return undefined;
-      return Similex.userData.set(sub ? r + '/' + sub : r, value);
+      return Sienna.userData.set(sub ? r + '/' + sub : r, value);
     },
 
     /**
@@ -84,10 +84,10 @@
     _watchModel: function (handler) {
       var self = this;
       var ref = this._ref();
-      if (!ref || !Similex.userData) {
+      if (!ref || !Sienna.userData) {
         return function () {};
       }
-      var unsub = Similex.userData.subscribe(ref, function (change) {
+      var unsub = Sienna.userData.subscribe(ref, function (change) {
         if (!self.element || !self.element[0] || !self.element[0].isConnected) {
           unsub(); // widget's node was removed — stop listening
           return;
@@ -103,8 +103,8 @@
      */
     _action: function (name, payload, run) {
       var type = this.widgetName + '.' + name;
-      if (Similex.actions) {
-        return Similex.actions.dispatch(
+      if (Sienna.actions) {
+        return Sienna.actions.dispatch(
           { type: type, target: this._panelId(), payload: payload || {} },
           run,
         );
@@ -113,4 +113,4 @@
       return null;
     },
   });
-})(window.jQuery, window.Similex);
+})(window.jQuery, window.Sienna);

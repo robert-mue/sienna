@@ -1,5 +1,5 @@
 /**
- * `similex.panel` — a workspace panel: a titlebar (title + minimise / maximise /
+ * `sienna.panel` — a workspace panel: a titlebar (title + minimise / maximise /
  * close controls) plus a content area hosting a dynamically loaded widget.
  *
  * Panels are absolutely positioned. The panel tracks its "normal" geometry
@@ -17,7 +17,7 @@
  * Classic script: uses the global jQuery (`$`) provided by the vendored
  * jquery.min.js + jquery-ui.js; no imports/exports.
  */
-$.widget('similex.panel', {
+$.widget('sienna.panel', {
   options: {
     title: 'Panel',
     closable: true,
@@ -27,7 +27,7 @@ $.widget('similex.panel', {
     maximizable: true,
     /**
      * A path string addressing the "thing" this panel is a view of, keyed into
-     * `Similex.userData` (e.g. `'models/graph-2'`). The panel does not interpret
+     * `Sienna.userData` (e.g. `'models/graph-2'`). The panel does not interpret
      * it; it is carried and persisted so a future pub/sub layer can scope
      * cross-panel updates to panels sharing the same subject.
      * @type {string}

@@ -1,6 +1,6 @@
 /**
- * `similex.counter` — increment/decrement counter, and the pilot for the
- * `$.similex.widgetBase` model-binding contract.
+ * `sienna.counter` — increment/decrement counter, and the pilot for the
+ * `$.sienna.widgetBase` model-binding contract.
  *
  * When the host panel has a `ref` (opened via File ▸ New / Open) the count lives
  * in that model at `<ref>/count`, so it persists via userData and is shared by
@@ -12,7 +12,7 @@
  *
  * Classic script, injected on demand by the widget registry.
  */
-$.widget('similex.counter', $.similex.widgetBase, {
+$.widget('sienna.counter', $.sienna.widgetBase, {
   options: {
     start: 0,
     step: 1,
@@ -90,4 +90,4 @@ $.widget('similex.counter', $.similex.widgetBase, {
   },
 });
 
-window.Similex.widgetRegistry._loaded('counter', 'counter');
+window.Sienna.widgetRegistry._loaded('counter', 'counter');

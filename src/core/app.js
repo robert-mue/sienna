@@ -1,12 +1,12 @@
 /**
  * App — composes the SPA out of a customisable menu and a panel workspace,
  * both mounted inside a single root element. Persists the workspace to
- * localStorage on every change and can restore it. Exposed as `Similex.App`.
+ * localStorage on every change and can restore it. Exposed as `Sienna.App`.
  *
- * Classic script: uses the global jQuery (`$`), `Similex.persistence`, and the
+ * Classic script: uses the global jQuery (`$`), `Sienna.persistence`, and the
  * `menu`/`workspace` widgets (load their scripts first). No imports/exports.
  */
-(function (Similex, $) {
+(function (Sienna, $) {
   'use strict';
 
   function App(root, options) {
@@ -50,7 +50,7 @@
    * @returns {Promise<boolean>} whether panels were restored
    */
   App.prototype.restore = function () {
-    var state = Similex.persistence.load();
+    var state = Sienna.persistence.load();
     if (state && state.length) {
       return this.$workspace.workspace('restore', state).then(function () {
         return true;
@@ -60,8 +60,8 @@
   };
 
   App.prototype._persist = function () {
-    Similex.persistence.save(this.$workspace.workspace('serialize'));
+    Sienna.persistence.save(this.$workspace.workspace('serialize'));
   };
 
-  Similex.App = App;
-})(window.Similex, window.jQuery);
+  Sienna.App = App;
+})(window.Sienna, window.jQuery);

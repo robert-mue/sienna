@@ -1,4 +1,4 @@
-# similex
+# sienna
 
 A static jQuery single-page app: a customisable menu and a workspace of
 draggable / resizable / minimisable / maximisable panels, where each panel hosts
