@@ -18,28 +18,28 @@
   var reg = Sienna.widgetRegistry;
 
   reg.register('clock', {
-    src: 'src/widgets/clock.js',
+    src: 'widgets/clock.js',
     label: 'Clock',
     title: 'Clock',
   });
   reg.register('hello', {
-    src: 'src/widgets/hello.js',
+    src: 'widgets/hello.js',
     label: 'Greeting',
     title: 'Greeting',
     options: { name: 'sienna' },
   });
   reg.register('counter', {
-    src: 'src/widgets/counter.js',
+    src: 'widgets/counter.js',
     label: 'Counter',
     title: 'Counter',
   });
   reg.register('notepad', {
-    src: 'src/widgets/notepad.js',
+    src: 'widgets/notepad.js',
     label: 'Notepad',
     title: 'Notepad',
   });
   reg.register('colorpicker', {
-    src: 'src/widgets/colorpicker.js',
+    src: 'widgets/colorpicker.js',
     label: 'Colour picker',
     title: 'Colour',
   });

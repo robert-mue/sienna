@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sienna — demo</title>
+    <!-- Shell assets live two levels up (this is a demo consumer of the shell). -->
+    <link rel="stylesheet" href="../../src/styles.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <!-- Vendored libraries (classic scripts; set the global jQuery). -->
+    <script src="../../vendor/jquery.min.js"></script>
+    <script src="../../vendor/jquery-ui.js"></script>
+
+    <!-- Shell core, in dependency order. Content widgets are NOT listed here;
+         they are injected on demand by the widget registry. -->
+    <script src="../../src/core/namespace.js"></script>
+    <script src="../../src/core/persistence.js"></script>
+    <script src="../../src/core/widget-registry.js"></script>
+    <script src="../../src/core/user-data.js"></script>
+    <script src="../../src/core/actions.js"></script>
+    <script src="../../src/core/history.js"></script>
+    <script src="../../src/core/files.js"></script>
+    <script src="../../src/core/panel.js"></script>
+    <script src="../../src/core/workspace.js"></script>
+    <script src="../../src/core/menu.js"></script>
+    <script src="../../src/core/app.js"></script>
+    <script src="../../src/core/widget-base.js"></script>
+
+    <!-- This demo app's own scripts (widget manifest + model layer + bootstrap). -->
+    <script src="widgets/index.js"></script>
+    <script src="models.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>

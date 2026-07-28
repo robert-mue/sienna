@@ -1,17 +1,21 @@
 # sienna
 
-A static jQuery single-page app: a customisable menu and a workspace of
-draggable / resizable / minimisable / maximisable panels, where each panel hosts
-a dynamically loaded jQuery UI widget. It also has a user-data model layer with
-autosave, undo/redo, live-syncing views, and session replay. Open panels persist
-across reloads.
+A static jQuery **shell** for single-page apps: a customisable menu and a
+workspace of draggable / resizable / minimisable / maximisable panels, where each
+panel hosts a dynamically loaded jQuery UI widget. It also has a user-data model
+layer with autosave, undo/redo, live-syncing views, and session replay. Open
+panels persist across reloads.
+
+This repo is the **shell** (`src/core/`, `vendor/`, `src/styles.css`) plus a
+runnable **demo** in `examples/demo/`. Applications live in their own repos and
+consume this one as a git submodule (the first is `simile`).
 
 ## Running
 
-No build, no server, no dependencies to install. Just open the file:
+No build, no server, no dependencies to install. Just open the demo:
 
 ```
-Double-click index.html  (or:  google-chrome index.html)
+Double-click examples/demo/index.html  (or:  google-chrome examples/demo/index.html)
 ```
 
 Everything is plain HTML/CSS/JS with vendored jQuery + jQuery UI in `vendor/`.
