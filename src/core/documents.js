@@ -1,0 +1,196 @@
+/**
+ * `Sienna.documents` — the shell's document layer, and the File menu built on
+ * it.
+ *
+ * The shell is a host: one `index.html` that becomes a particular application
+ * (`?app=simile`, `?app=webakt`) by loading that app's widgets and its notion
+ * of user data. What does NOT vary is the conventional furniture a user
+ * expects along the top — and **File is part of that furniture**. So the shell
+ * owns New / Open / Save / Save As / the list of open documents, and an app
+ * customises only what it must.
+ *
+ * That "must" is small but real. Two things cannot be generic, so they are
+ * registered rather than assumed:
+ *
+ *   - `create(id)` — what an EMPTY document of this app looks like. A shell
+ *     cannot know that simile's is three id-keyed maps plus layout.
+ *   - `widget` — which widget opens a document in a panel.
+ *
+ * Everything else is generic: documents live at `<root>/<id>` in `userData`,
+ * are saved as pretty JSON via `Sienna.files.download`, and are read back via
+ * `Sienna.files.pickFile`, both of which exist because `file://` forbids
+ * silent reads and writes.
+ *
+ * Deliberately NOT here: what a document MEANS. The shell moves whole values in
+ * and out of `userData` and never inspects them, so the app keeps sole
+ * authority over its own shape — which is the same boundary `userData` itself
+ * draws.
+ *
+ * Classic script, plain JS. Load after `user-data.js`, `files.js` and
+ * `actions.js`, before `app.js`.
+ */
+(function (Sienna) {
+  'use strict';
+
+  var config = {
+    root: 'documents',
+    label: 'document',
+    widget: null,
+    create: null,
+    validate: null,
+  };
+
+  function path(id) {
+    return config.root + '/' + id;
+  }
+
+  /** A free id under the configured root, based on a preferred name. */
+  function freeId(preferred) {
+    var base = String(preferred || config.label).replace(/[^A-Za-z0-9_-]/g, '') || 'doc';
+    var id = base;
+    var n = 1;
+    while (Sienna.userData.get(path(id))) { n++; id = base + n; }
+    return id;
+  }
+
+  Sienna.documents = {
+    /**
+     * An app declares itself here. Everything is optional except that opening
+     * a document needs a `widget` and creating one needs `create`.
+     *
+     * @param {{root?:string, label?:string, widget?:string,
+     *          create?:(id:string)=>object, validate?:(obj:object)=>void}} opts
+     */
+    configure: function (opts) {
+      Object.assign(config, opts || {});
+      return this;
+    },
+
+    /** Has an app declared its documents? The File menu depends on it. */
+    isConfigured: function () {
+      return !!(config.widget || config.create);
+    },
+
+    /** `[{ id, path, name }]` for every document in the store. */
+    list: function () {
+      return Sienna.userData.keys(config.root).map(function (id) {
+        var doc = Sienna.userData.get(path(id)) || {};
+        return { id: id, path: path(id), name: doc.name || id };
+      });
+    },
+
+    /** Create an empty document and return its path. */
+    create: function (preferred) {
+      if (typeof config.create !== 'function') {
+        throw new Error('No document factory registered: call Sienna.documents.configure({ create }).');
+      }
+      var id = freeId(preferred || config.label);
+      var doc = config.create(id);
+      Sienna.actions.dispatch(
+        { type: 'documents.create', target: path(id), payload: { id: id } },
+        function () { Sienna.userData.set(path(id), doc); }
+      );
+      return path(id);
+    },
+
+    /**
+     * Take a parsed file into the store as a new document. The id is re-derived
+     * from the free path it lands at rather than trusted from the file, so two
+     * files saved from one original cannot collide.
+     */
+    import: function (obj) {
+      if (!obj || typeof obj !== 'object') throw new Error('Not a document file.');
+      if (typeof config.validate === 'function') config.validate(obj);
+      var id = freeId(obj.id || config.label);
+      Sienna.actions.dispatch(
+        { type: 'documents.import', target: path(id), payload: { id: id, name: obj.name || id } },
+        function () {
+          Sienna.userData.fromJSON(path(id), Object.assign({}, obj, { id: id }));
+        }
+      );
+      return path(id);
+    },
+
+    /** Save one document as a file (a download; `file://` forbids writing). */
+    save: function (docPath) {
+      var doc = Sienna.userData.toJSON(docPath);
+      if (!doc) return false;
+      Sienna.files.download((doc.name || doc.id || 'document') + '.json', doc);
+      return true;
+    },
+
+    /** Open a document in a panel, using the app's registered widget. */
+    open: function (app, docPath, title) {
+      if (!config.widget) throw new Error('No document widget registered.');
+      var doc = Sienna.userData.get(docPath) || {};
+      // `ref` is the shell's own binding: the path a panel is a view of. Using
+      // it means the widget gets _model()/_watchModel for free, several panels
+      // can share one document, and File commands can find the current one
+      // without knowing anything about the widget.
+      app.addPanel({
+        title: title || doc.name || docPath.split('/').pop(),
+        widget: config.widget,
+        ref: docPath,
+      });
+    },
+
+    /**
+     * The File menu, ready for the menu bar. The app never builds these items;
+     * it only registers what makes them app-specific.
+     */
+    menuItems: function (app) {
+      var self = this;
+      var items = [
+        {
+          label: 'New ' + config.label,
+          onSelect: function () { self.open(app, self.create()); },
+        },
+        {
+          label: 'Open ' + config.label + ' file…',
+          onSelect: function () {
+            Sienna.files.pickFile(function (obj) {
+              try {
+                self.open(app, self.import(obj));
+              } catch (e) {
+                window.alert('Could not open that file: ' + e.message);
+              }
+            });
+          },
+        },
+        {
+          label: 'Save ' + config.label + ' as file…',
+          onSelect: function () {
+            var p = self.currentPath(app);
+            if (p) self.save(p);
+          },
+        },
+      ];
+
+      var docs = this.list();
+      if (docs.length) {
+        items.push({ label: '—' });
+        docs.forEach(function (doc) {
+          items.push({
+            label: doc.name,
+            onSelect: function () { self.open(app, doc.path, doc.name); },
+          });
+        });
+      }
+      return items;
+    },
+
+    /**
+     * Which document a File command acts on: the one the frontmost bound panel
+     * is viewing. A panel's `ref` is exactly that path, so this needs no
+     * knowledge of any widget.
+     */
+    currentPath: function (app) {
+      var found = null;
+      $('.slx-panel').each(function () {
+        var ref = $(this).panel('ref');
+        if (ref && Sienna.userData.get(ref)) found = ref;
+      });
+      return found;
+    },
+  };
+})(window.Sienna);
