@@ -27,6 +27,21 @@
   'use strict';
 
   $.widget('sienna.widgetBase', {
+    /**
+     * A widget opened with a `path` option but no panel `ref` binds its panel
+     * to that path. A panel's `ref` is how the shell knows what a panel is a
+     * view OF — the File menu, and any future cross-panel scoping, depend on
+     * it — so a widget that views a document must declare it, however it was
+     * opened. Without this a panel opened from the Widgets menu is invisible to
+     * File ▸ Save, which is exactly what it looks like: nothing happens.
+     */
+    _bindPathOption: function () {
+      var $p = this._panel();
+      if (!$p.length || $p.panel('ref')) return;
+      var path = this.options && this.options.path;
+      if (path && Sienna.userData.get(path)) $p.panel('ref', path);
+    },
+
     /** The host panel element (the `.slx-panel` ancestor of the content div). */
     _panel: function () {
       if (!this._panelEl || !this._panelEl.length) {

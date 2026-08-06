@@ -161,7 +161,13 @@
           label: 'Save ' + config.label + ' as file…',
           onSelect: function () {
             var p = self.currentPath(app);
-            if (p) self.save(p);
+            // Never fail silently: a command that does nothing, with no reason
+            // given, is indistinguishable from a broken one.
+            if (!p) {
+              window.alert('No ' + config.label + ' to save — open one first.');
+              return;
+            }
+            self.save(p);
           },
         },
       ];
@@ -180,17 +186,26 @@
     },
 
     /**
-     * Which document a File command acts on: the one the frontmost bound panel
+     * Which document a File command acts on: the one the FRONTMOST bound panel
      * is viewing. A panel's `ref` is exactly that path, so this needs no
-     * knowledge of any widget.
+     * knowledge of any widget — but a widget that views a document must set its
+     * panel's `ref`, or the shell cannot see it (widget-base does this for a
+     * widget opened with a `path` option).
+     *
+     * Frontmost is by stacking order, so this acts on the panel last raised —
+     * what the user means by "this one" when several are open.
      */
     currentPath: function (app) {
-      var found = null;
+      var best = null;
+      var bestZ = -Infinity;
       $('.slx-panel').each(function () {
         var ref = $(this).panel('ref');
-        if (ref && Sienna.userData.get(ref)) found = ref;
+        if (!ref || !Sienna.userData.get(ref)) return;
+        var z = parseInt($(this).css('z-index'), 10);
+        if (isNaN(z)) z = 0;
+        if (z >= bestZ) { bestZ = z; best = ref; }
       });
-      return found;
+      return best;
     },
   };
 })(window.Sienna);
