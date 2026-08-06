@@ -17,9 +17,15 @@
  *   - `widget` — which widget opens a document in a panel.
  *
  * Everything else is generic: documents live at `<root>/<id>` in `userData`,
- * are saved as pretty JSON via `Sienna.files.download`, and are read back via
- * `Sienna.files.pickFile`, both of which exist because `file://` forbids
- * silent reads and writes.
+ * are saved as pretty JSON via `Sienna.files`, and are read back via
+ * `Sienna.files.pickFile`, both of which exist because a page may not read or
+ * write a file the user has not chosen.
+ *
+ * **Save vs Save as.** `saveAs` asks the user for a file and REMEMBERS it, so
+ * `save` can write straight back to it — a real Save, not a fresh download
+ * each time. That rests on the File System Access API, which is Chromium-only,
+ * so where it is absent both degrade to a download and Save means Save as.
+ * Handles live in memory only; see `saveAs` for why they are not persisted.
  *
  * Deliberately NOT here: what a document MEANS. The shell moves whole values in
  * and out of `userData` and never inspects them, so the app keeps sole
@@ -39,6 +45,13 @@
     create: null,
     validate: null,
   };
+
+  /**
+   * File handles granted by the user, keyed by document path — what makes a
+   * real Save possible (see `saveAs`). In memory only, so they last as long as
+   * the page does and no longer.
+   */
+  var handles = Object.create(null);
 
   function path(id) {
     return config.root + '/' + id;
@@ -111,12 +124,54 @@
       return path(id);
     },
 
-    /** Save one document as a file (a download; `file://` forbids writing). */
+    /**
+     * Save a document to a file the user chooses, and REMEMBER the file, so
+     * that `save` can afterwards write straight back to it.
+     *
+     * Handles are held in memory only, keyed by document path. Persisting them
+     * (IndexedDB can store a handle across sessions, at the price of a
+     * permission prompt on the next visit) is deliberately not done yet: it
+     * would mean a document silently remembering a file from a previous day,
+     * which wants thinking about before it is built.
+     *
+     * @returns {Promise<{written: boolean, cancelled: boolean}>}
+     */
+    saveAs: function (docPath) {
+      var doc = Sienna.userData.toJSON(docPath);
+      if (!doc) return Promise.resolve({ written: false, cancelled: false });
+      var name = (doc.name || doc.id || 'document') + '.json';
+      return Sienna.files.saveAs(name, doc).then(function (r) {
+        if (r.handle) handles[docPath] = r.handle;
+        return { written: r.written, cancelled: r.cancelled };
+      });
+    },
+
+    /**
+     * Save a document back to the file it came from, falling back to `saveAs`
+     * when there is no such file — the first save, a browser with no File
+     * System Access API, or a grant that has lapsed since.
+     *
+     * @returns {Promise<{written: boolean, cancelled: boolean}>}
+     */
     save: function (docPath) {
       var doc = Sienna.userData.toJSON(docPath);
-      if (!doc) return false;
-      Sienna.files.download((doc.name || doc.id || 'document') + '.json', doc);
-      return true;
+      if (!doc) return Promise.resolve({ written: false, cancelled: false });
+      var handle = handles[docPath];
+      if (!handle) return this.saveAs(docPath);
+      var self = this;
+      return Sienna.files.writeTo(handle, doc)
+        .then(function () { return { written: true, cancelled: false }; })
+        .catch(function () {
+          // The grant is gone (revoked, or the file moved). Ask again rather
+          // than report a failure the user can do nothing with.
+          delete handles[docPath];
+          return self.saveAs(docPath);
+        });
+    },
+
+    /** Has this document a file to save straight back to? */
+    hasFile: function (docPath) {
+      return !!handles[docPath];
     },
 
     /** Open a document in a panel, using the app's registered widget. */
@@ -157,20 +212,40 @@
             });
           },
         },
+        // Save writes straight back to the file the document came from, asking
+        // for one the first time. On a browser with no File System Access API
+        // there is no such file, so it degrades to Save as — both entries then
+        // download. Both are listed everywhere all the same: a menu that
+        // changes shape between browsers is harder to describe than one
+        // command that quietly does less.
+        {
+          label: 'Save ' + config.label,
+          onSelect: function () { withCurrent('save'); },
+        },
         {
           label: 'Save ' + config.label + ' as file…',
-          onSelect: function () {
-            var p = self.currentPath(app);
-            // Never fail silently: a command that does nothing, with no reason
-            // given, is indistinguishable from a broken one.
-            if (!p) {
-              window.alert('No ' + config.label + ' to save — open one first.');
-              return;
-            }
-            self.save(p);
-          },
+          onSelect: function () { withCurrent('saveAs'); },
         },
       ];
+
+      /**
+       * Run a save command on the frontmost document, and say so when it does
+       * not happen. Never fail silently: a command that does nothing, with no
+       * reason given, is indistinguishable from a broken one.
+       */
+      function withCurrent(method) {
+        var p = self.currentPath(app);
+        if (!p) {
+          window.alert('No ' + config.label + ' to save — open one first.');
+          return;
+        }
+        self[method](p).then(function (r) {
+          if (r.written || r.cancelled) return;   // cancelling is not a failure
+          window.alert('Could not save the ' + config.label + ': the browser refused.');
+        }).catch(function (e) {
+          window.alert('Could not save: ' + (e && e.message ? e.message : e));
+        });
+      }
 
       var docs = this.list();
       if (docs.length) {
