@@ -27,7 +27,9 @@
 (function (Sienna) {
   'use strict';
 
-  var KEY = 'sienna.userData.v1';
+  // Namespaced per application — see `namespace.js` for why every file:// page
+  // sharing one origin makes that necessary.
+  var KEY = Sienna.storageKey('userData.v1');
 
   var data = {}; // the whole store
   var subs = []; // [{ prefix, fn }]
@@ -232,9 +234,25 @@
 
     // ---- storage lifecycle ----
 
-    /** Re-read the whole store from localStorage (silent; no events). */
+    /**
+     * Re-read the whole store from localStorage (silent; no events).
+     *
+     * ADOPTS pre-namespacing data once: when an app declares an id for the
+     * first time, its store is still sitting under the old shared key, and
+     * without this everything a user has built would appear to vanish. The old
+     * slot is copied, not moved — left where it is, so rolling back to a build
+     * without namespacing still finds it. Only ever done when the app's own
+     * slot is empty, so it cannot overwrite anything.
+     */
     load: function () {
       var loaded = Sienna.persistence.readJSON(KEY);
+      if (!loaded && Sienna.appId) {
+        var legacy = Sienna.persistence.readJSON(Sienna.legacyStorageKey('userData.v1'));
+        if (legacy && typeof legacy === 'object') {
+          loaded = legacy;
+          Sienna.persistence.writeJSON(KEY, legacy);
+        }
+      }
       data = loaded && typeof loaded === 'object' ? loaded : {};
       return data;
     },

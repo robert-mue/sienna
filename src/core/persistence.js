@@ -11,7 +11,9 @@
 (function (Sienna) {
   'use strict';
 
-  var KEY = 'sienna.workspace.v1';
+  // Namespaced per application — see `namespace.js` for why every file:// page
+  // sharing one origin makes that necessary.
+  var KEY = Sienna.storageKey('workspace.v1');
 
   Sienna.persistence = {
     /** Guarded `JSON.stringify` write to an arbitrary key. */
@@ -49,6 +51,15 @@
 
     load: function () {
       var parsed = this.readJSON(KEY);
+      // Adopt a pre-namespacing session once, as userData does — otherwise the
+      // first run after an app declares an id opens with an empty workspace.
+      if (!Array.isArray(parsed) && Sienna.appId) {
+        var legacy = this.readJSON(Sienna.legacyStorageKey('workspace.v1'));
+        if (Array.isArray(legacy)) {
+          parsed = legacy;
+          this.writeJSON(KEY, legacy);
+        }
+      }
       return Array.isArray(parsed) ? parsed : null;
     },
 
