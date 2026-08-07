@@ -178,9 +178,25 @@
       var wasRecording = recording;
       recording = false;
 
+      /**
+       * Wait between steps — but only when there is something to wait for.
+       *
+       * An unpaced replay used to go through `setTimeout(…, 0)` all the same,
+       * one timer per entry, which cost it dearly in two ways. A background tab
+       * clamps timers to roughly one a second, so a 54-action session took the
+       * best part of a minute and looked hung; and even in the foreground, a
+       * timer per entry makes "replay at once" needlessly slow for the use that
+       * wants it most — rebuilding a model as a test fixture.
+       *
+       * With no pacing asked for, stay in microtasks: the replay then runs to
+       * completion in one go, immune to throttling. The cost is that the page
+       * does not repaint mid-replay, which is exactly right for "at once" and
+       * irrelevant to the timed path, which still uses real timers.
+       */
       function delay(ms) {
+        if (!(ms > 0)) return Promise.resolve();
         return new Promise(function (res) {
-          setTimeout(res, ms > 0 ? ms : 0);
+          setTimeout(res, ms);
         });
       }
 
