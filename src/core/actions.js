@@ -35,12 +35,35 @@
   var replayHandlers = {}; // type -> fn(entry): how to re-perform an action
 
   // Default replay for a data-changing entry: re-apply its captured values.
+  /**
+   * A detached copy of a recorded value. Primitives pass through untouched, so
+   * the common case — a label, a number, a pair of coordinates — costs nothing
+   * beyond a typeof.
+   */
+  function snapshot(v) {
+    if (v === null || typeof v !== 'object') return v;
+    if (typeof structuredClone === 'function') {
+      try { return structuredClone(v); } catch (e) { /* fall through */ }
+    }
+    return JSON.parse(JSON.stringify(v));
+  }
+
+  /**
+   * Re-apply an entry's captured changes — used by replay, and by undo/redo
+   * through the history layer.
+   *
+   * `snapshot` on the way OUT as well as in, and for the same reason: handing
+   * the recorded object itself to `userData` would put the log's own value into
+   * the live store, where the next write into that object graph mutates it. The
+   * log would then be corrupted BY BEING USED — faithful the first time, wrong
+   * every time after. Replaying a log must leave it exactly as it found it.
+   */
   function applyChanges(entry) {
     Sienna.userData.batch(function () {
       for (var i = 0; i < entry.changes.length; i++) {
         var c = entry.changes[i];
         if (c.value === undefined) Sienna.userData.remove(c.ref);
-        else Sienna.userData.set(c.ref, c.value);
+        else Sienna.userData.set(c.ref, snapshot(c.value));
       }
     });
   }
@@ -56,6 +79,13 @@
   }
 
   Sienna.actions = {
+    /**
+     * A detached copy of a recorded value — exposed because `history` applies
+     * the very same captured changes and must copy them for the same reason
+     * (see `applyChanges`).
+     */
+    snapshot: snapshot,
+
     /**
      * Dispatch (and record) a user action.
      * @param {{type:string, target?:*, payload?:object}} action
@@ -79,7 +109,16 @@
         } else {
           capture = entry.changes;
           var unsub = Sienna.userData.subscribe('', function (c) {
-            capture.push({ ref: c.ref, prior: c.prior, value: c.value });
+            // SNAPSHOT, never the live object. `userData` stores values by
+            // reference, so a recorded value would otherwise go on changing
+            // after it was recorded: writing deeper into the same object graph
+            // mutates the very thing the log is holding. The symptom is a log
+            // that lies about the past — a recorded "create an empty model"
+            // that, by the time you read it, contains the finished model, so
+            // replay reproduces the end state at the creating action and every
+            // later entry is a no-op. A history must be immutable to be a
+            // history.
+            capture.push({ ref: c.ref, prior: snapshot(c.prior), value: snapshot(c.value) });
           });
           try {
             Sienna.userData.batch(run); // one persist for the whole action

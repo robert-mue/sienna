@@ -26,11 +26,17 @@
   var redoStack = [];
 
   // Apply one change's target value: absent (undefined) => remove, else set.
+  //
+  // A COPY, never the recorded object itself. `userData` stores by reference,
+  // so putting a captured value straight back would hand the live store the
+  // undo stack's own object — and the next edit into that object graph would
+  // silently rewrite history. Undoing twice would then restore something that
+  // was never the state.
   function applyValue(ref, value) {
     if (value === undefined) {
       Sienna.userData.remove(ref);
     } else {
-      Sienna.userData.set(ref, value);
+      Sienna.userData.set(ref, Sienna.actions.snapshot(value));
     }
   }
 
