@@ -98,10 +98,15 @@ $.widget('sienna.workspace', {
       },
     });
 
-    if (geometry) {
+    // A geometry saying only how BIG is not a position: size the panel, but let
+    // it cascade like any other, or every document opened from the File menu
+    // lands in one stack at the top-left. Restore passes a full geometry and so
+    // keeps its exact place, which is the whole point of restoring.
+    if (geometry && (geometry.left != null || geometry.top != null)) {
       $panel.panel('setGeometry', geometry);
     } else {
       this._place($panel);
+      if (geometry) $panel.panel('setGeometry', geometry);
     }
     this._raise($panel);
 

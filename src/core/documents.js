@@ -9,12 +9,19 @@
  * owns New / Open / Save / Save As / the list of open documents, and an app
  * customises only what it must.
  *
- * That "must" is small but real. Two things cannot be generic, so they are
+ * That "must" is small but real. Three things cannot be generic, so they are
  * registered rather than assumed:
  *
  *   - `create(id)` — what an EMPTY document of this app looks like. A shell
  *     cannot know that simile's is three id-keyed maps plus layout.
  *   - `widget` — which widget opens a document in a panel.
+ *   - `geometry` — the size that panel should OPEN at. The panel default
+ *     (260px wide, height from content) is sized for a small tool panel, and a
+ *     document widget is not one: simile's diagram widget wraps its toolbar
+ *     into six rows at that width, so the furniture is taller than the canvas.
+ *     Only the app knows what its own document wants to be seen at. Optional,
+ *     and omitting it keeps the panel default, so this changes nothing for an
+ *     app that does not set it.
  *
  * Everything else is generic: documents live at `<root>/<id>` in `userData`,
  * are saved as pretty JSON via `Sienna.files`, and are read back via
@@ -42,6 +49,7 @@
     root: 'documents',
     label: 'document',
     widget: null,
+    geometry: null,
     create: null,
     validate: null,
   };
@@ -72,6 +80,7 @@
      * a document needs a `widget` and creating one needs `create`.
      *
      * @param {{root?:string, label?:string, widget?:string,
+     *          geometry?:{left?:number, top?:number, width?:number, height?:number},
      *          create?:(id:string)=>object, validate?:(obj:object)=>void}} opts
      */
     configure: function (opts) {
@@ -182,11 +191,16 @@
       // it means the widget gets _model()/_watchModel for free, several panels
       // can share one document, and File commands can find the current one
       // without knowing anything about the widget.
-      app.addPanel({
+      // `geometry` is passed only when the app asked for one: addPanel treats
+      // an absent geometry and an undefined one differently from a partial
+      // object, and the panel default must survive an app that never set it.
+      var cfg = {
         title: title || doc.name || docPath.split('/').pop(),
         widget: config.widget,
         ref: docPath,
-      });
+      };
+      if (config.geometry) cfg.geometry = Object.assign({}, config.geometry);
+      app.addPanel(cfg);
     },
 
     /**
