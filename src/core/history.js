@@ -40,21 +40,38 @@
     }
   }
 
+  // Undo and redo are not user actions, so their writes must belong to no
+  // transaction — not even one that happens to be open around the call. See
+  // `actions.detached`: invoked from the Edit menu, undo was captured into the
+  // menu's own transaction and pushed back on this stack as a fresh step, so
+  // the menu item alternated undo and redo forever while Ctrl-Z, which calls
+  // straight in, worked.
+  function detached(fn) {
+    if (Sienna.actions && typeof Sienna.actions.detached === 'function') {
+      return Sienna.actions.detached(fn);
+    }
+    return fn();
+  }
+
   // Reverse a transaction: walk changes back-to-front to their prior values.
   function revert(entry) {
-    Sienna.userData.batch(function () {
-      for (var i = entry.changes.length - 1; i >= 0; i--) {
-        applyValue(entry.changes[i].ref, entry.changes[i].prior);
-      }
+    detached(function () {
+      Sienna.userData.batch(function () {
+        for (var i = entry.changes.length - 1; i >= 0; i--) {
+          applyValue(entry.changes[i].ref, entry.changes[i].prior);
+        }
+      });
     });
   }
 
   // Re-apply a transaction: front-to-back to their new values.
   function reapply(entry) {
-    Sienna.userData.batch(function () {
-      for (var i = 0; i < entry.changes.length; i++) {
-        applyValue(entry.changes[i].ref, entry.changes[i].value);
-      }
+    detached(function () {
+      Sienna.userData.batch(function () {
+        for (var i = 0; i < entry.changes.length; i++) {
+          applyValue(entry.changes[i].ref, entry.changes[i].value);
+        }
+      });
     });
   }
 

@@ -145,6 +145,33 @@
       };
     },
 
+    /**
+     * Run `fn` OUTSIDE any open transaction, so its userData changes are not
+     * captured by whatever action happens to be running.
+     *
+     * For machinery that moves data without being a user action — undo and redo
+     * above all. They write straight to `userData` and deliberately do not
+     * dispatch, which is enough when they are called from a keyboard shortcut,
+     * and not enough when they are called from a menu: `menu.select` wraps the
+     * item's effect in a transaction, so the undo's own writes were captured
+     * into it and became a NEW undoable transaction. Edit ▸ Undo then undid its
+     * own previous undo, and the menu appeared to do nothing at all while the
+     * keyboard worked perfectly.
+     *
+     * Not the same as `record(false)`, which stops entries being LOGGED. This
+     * stops changes being ATTRIBUTED to an enclosing action that did not make
+     * them.
+     */
+    detached: function (fn) {
+      var outer = capture;
+      capture = null;
+      try {
+        return fn();
+      } finally {
+        capture = outer;
+      }
+    },
+
     /** Turn recording on/off (effects still run when off — e.g. during replay). */
     record: function (on) {
       recording = !!on;
