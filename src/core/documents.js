@@ -48,6 +48,7 @@
   var config = {
     root: 'documents',
     label: 'document',
+    labelPlural: null,   // only where adding 's' is wrong
     widget: null,
     geometry: null,
     create: null,
@@ -79,7 +80,7 @@
      * An app declares itself here. Everything is optional except that opening
      * a document needs a `widget` and creating one needs `create`.
      *
-     * @param {{root?:string, label?:string, widget?:string,
+     * @param {{root?:string, label?:string, labelPlural?:string, widget?:string,
      *          geometry?:{left?:number, top?:number, width?:number, height?:number},
      *          create?:(id:string)=>object, validate?:(obj:object)=>void}} opts
      */
@@ -152,6 +153,41 @@
       return Sienna.files.saveAs(name, doc).then(function (r) {
         if (r.handle) handles[docPath] = r.handle;
         return { written: r.written, cancelled: r.cancelled };
+      });
+    },
+
+    /**
+     * Write EVERY stored document to one file — a backup, not a save.
+     *
+     * The gap this fills is not convenience. Documents live in `userData`,
+     * which lives in localStorage, which lives on one machine in one browser
+     * profile: no repository holds them, and a per-document Save as is a chore
+     * nobody performs often enough to be a backup. One command that writes the
+     * lot is the difference between "my work is safe" and "my work was safe as
+     * of whenever I last remembered".
+     *
+     * Deliberately NOT paired with an import yet. Reading a bundle back has to
+     * answer what happens to a document of the same id that already exists, and
+     * the wrong answer silently destroys work — the one thing this command
+     * exists to prevent. Left to be designed rather than guessed.
+     *
+     * @returns {Promise<{written: boolean, cancelled: boolean, count: number}>}
+     */
+    exportAll: function () {
+      var all = Sienna.userData.toJSON(config.root) || {};
+      var ids = Object.keys(all);
+      var stamp = new Date().toISOString().slice(0, 10);
+      var name = (Sienna.appId || config.root) + '-' + config.root + '-' + stamp + '.json';
+      // Wrapped rather than bare, so a reader can tell a bundle of documents
+      // from a single one without guessing, and can see what it was a bundle OF.
+      return Sienna.files.saveAs(name, {
+        kind: 'sienna.documents.bundle',
+        root: config.root,
+        savedAt: new Date().toISOString(),
+        count: ids.length,
+        documents: all,
+      }).then(function (r) {
+        return { written: r.written, cancelled: r.cancelled, count: ids.length };
       });
     },
 
@@ -240,7 +276,30 @@
           label: 'Save ' + config.label + ' as file…',
           onSelect: function () { withCurrent('saveAs'); },
         },
+        // The backup. Listed even when there is nothing to back up, because a
+        // command that appears only once you have something to lose is one you
+        // learn about too late.
+        {
+          label: 'Export all ' + plural() + '…',
+          onSelect: function () {
+            self.exportAll().then(function (r) {
+              if (r.cancelled) return;
+              if (!r.written) {
+                window.alert('Could not write the file: the browser refused.');
+                return;
+              }
+              window.alert('Exported ' + r.count + ' ' + (r.count === 1 ? config.label : plural()) + '.');
+            }).catch(function (e) {
+              window.alert('Could not export: ' + (e && e.message ? e.message : e));
+            });
+          },
+        },
       ];
+
+      /** `label` pluralised: an app may say so itself where adding 's' is wrong. */
+      function plural() {
+        return config.labelPlural || config.label + 's';
+      }
 
       /**
        * Run a save command on the frontmost document, and say so when it does
