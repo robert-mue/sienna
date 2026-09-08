@@ -110,6 +110,25 @@
     Sienna.userData.set(recentKey(), list.slice(0, config.recentMax));
   }
 
+  /**
+   * THE CURRENT DOCUMENT — which one a command with no other subject acts on.
+   *
+   * It used to be implicit: whichever bound panel was frontmost. That reads the
+   * user's mind correctly most of the time and cannot answer at all the rest,
+   * because a widget with no document panel of its own — a simulation's
+   * transport, a plot — has no frontmost anything to consult, and a document
+   * with every panel closed stops existing as far as the question goes.
+   *
+   * So it is stored, at `current/<root>`, and moved by everything that plainly
+   * means "I am working on this now": creating, opening, and bringing a bound
+   * panel to the front. The explicit File command is for saying so when none of
+   * those has happened. Frontmost is still the fallback, for a store that has
+   * never recorded one.
+   */
+  function currentKey() {
+    return 'current/' + config.root;
+  }
+
   Sienna.documents = {
     /**
      * An app declares itself here. Everything is optional except that opening
@@ -274,6 +293,32 @@
       if (config.geometry) cfg.geometry = Object.assign({}, config.geometry);
       app.addPanel(cfg);
       touchRecent(docPath);
+      this.setCurrent(docPath);
+    },
+
+    /**
+     * The current document's path, or null. The stored choice wins as long as
+     * it still names something; failing that, the frontmost bound panel.
+     * @param {object} [app] only needed for the frontmost fallback
+     */
+    current: function (app) {
+      var id = Sienna.userData.get(currentKey());
+      if (typeof id === 'string' && Sienna.userData.get(path(id))) return path(id);
+      return app ? this.frontmostPath(app) : null;
+    },
+
+    /**
+     * Make `docPath` current. Written straight to `userData`, never dispatched:
+     * this is navigation, and an undo that silently retargeted the Run controls
+     * would be a strange thing to offer. A no-op when nothing changes, so that
+     * raising the same panel twice does not churn the store or the menu.
+     */
+    setCurrent: function (docPath) {
+      if (!docPath || docPath.indexOf(config.root + '/') !== 0) return;
+      var id = docPath.slice(config.root.length + 1);
+      if (!Sienna.userData.get(path(id))) return;
+      if (Sienna.userData.get(currentKey()) === id) return;
+      Sienna.userData.set(currentKey(), id);
     },
 
     /** `[{ id, path, name }]` for the recently opened, newest first. */
@@ -352,7 +397,7 @@
        * reason given, is indistinguishable from a broken one.
        */
       function withCurrent(method) {
-        var p = self.currentPath(app);
+        var p = self.current(app);
         if (!p) {
           window.alert('No ' + config.label + ' to save — open one first.');
           return;
@@ -385,6 +430,21 @@
       if (docs.length) {
         items.push({ label: '—' });
 
+        // Saying which one is current, and letting it be said. The marker is
+        // the only place the concept is visible at all until a panel's titlebar
+        // shows it, and a list where nothing is ticked would leave the user
+        // guessing what the commands above act on.
+        var cur = this.current(app);
+        items.push({
+          label: 'Current ' + config.label,
+          items: byName(docs).map(function (doc) {
+            return {
+              label: (doc.path === cur ? '• ' : '\u2007 ') + doc.name,
+              onSelect: function () { self.setCurrent(doc.path); },
+            };
+          }),
+        });
+
         var recent = this.recent();
         items.push({
           label: 'Recent',
@@ -395,10 +455,13 @@
 
         items.push({
           label: 'All ' + plural(),
-          items: docs.slice().sort(function (a2, b2) {
-            return a2.name.localeCompare(b2.name);
-          }).map(openItem),
+          items: byName(docs).map(openItem),
         });
+      }
+
+      /** A copy in name order — store order is arrival order, which is no order. */
+      function byName(list) {
+        return list.slice().sort(function (a2, b2) { return a2.name.localeCompare(b2.name); });
       }
 
       function openItem(doc) {
@@ -412,16 +475,17 @@
     },
 
     /**
-     * Which document a File command acts on: the one the FRONTMOST bound panel
-     * is viewing. A panel's `ref` is exactly that path, so this needs no
-     * knowledge of any widget — but a widget that views a document must set its
-     * panel's `ref`, or the shell cannot see it (widget-base does this for a
-     * widget opened with a `path` option).
+     * The document the FRONTMOST bound panel is viewing. A panel's `ref` is
+     * exactly that path, so this needs no knowledge of any widget — but a
+     * widget that views a document must set its panel's `ref`, or the shell
+     * cannot see it (widget-base does this for a widget opened with a `path`
+     * option).
      *
-     * Frontmost is by stacking order, so this acts on the panel last raised —
-     * what the user means by "this one" when several are open.
+     * Frontmost is by stacking order, so this is the panel last raised. Used as
+     * the fallback for `current`, and no longer consulted directly: raising a
+     * panel now makes its document current, so the two agree.
      */
-    currentPath: function (app) {
+    frontmostPath: function (app) {
       var best = null;
       var bestZ = -Infinity;
       $('.slx-panel').each(function () {

@@ -4,7 +4,8 @@
  *
  * The workspace keeps a metadata entry per panel (widget name, title, options)
  * so the whole workspace can be serialised to a plain array and restored later.
- * It calls `onChange` whenever a panel is added, removed, moved, resized, or
+ * It calls `onRaise` when a panel is brought to the front, and `onChange`
+ * whenever a panel is added, removed, moved, resized, or
  * min/maximised — the hook the app uses to persist.
  *
  * Usage:
@@ -21,6 +22,8 @@ $.widget('sienna.workspace', {
   options: {
     /** @type {(() => void) | null} */
     onChange: null,
+    /** Called with (ref, $panel) when a panel is brought to the front. */
+    onRaise: null,
   },
 
   _create() {
@@ -89,7 +92,14 @@ $.widget('sienna.workspace', {
         this._dispatch('panel.close', panelId, {});
         this._emitChange();
       },
-      onFocus: () => this._raise($panel),
+      onFocus: () => {
+        this._raise($panel);
+        // Bringing a panel to the front is the plainest statement there is of
+        // which thing you are working on, so the host gets told. Kept as a
+        // callback rather than a call into `documents`, because a workspace
+        // holds panels and should not know that any of them view a document.
+        if (typeof this.options.onRaise === 'function') this.options.onRaise(ref, $panel);
+      },
       onChange: (w, change) => {
         if (change) {
           this._dispatch('panel.' + change.type, panelId, change.payload);

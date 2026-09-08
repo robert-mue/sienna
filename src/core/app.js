@@ -35,6 +35,12 @@
         onChange: function () {
           self._persist();
         },
+        // Raising a panel that views a document makes that document current.
+        // This is the shell joining its own two halves: the workspace reports
+        // a raise, `documents` decides it means something.
+        onRaise: function (ref) {
+          if (hasDocuments() && ref) Sienna.documents.setCurrent(ref);
+        },
       });
   }
 
@@ -69,7 +75,8 @@
         // of the recently-opened list, since File ▸ Recent is part of the menu
         // and re-orders on every open.
         return Sienna.documents.list().map(function (d) { return d.id + ':' + d.name; }).join('|')
-          + '#' + Sienna.documents.recent().map(function (d) { return d.id; }).join(',');
+          + '#' + Sienna.documents.recent().map(function (d) { return d.id; }).join(',')
+          + '@' + (Sienna.documents.current(self) || '');
       };
       var last = sig();
       this._docWatch = Sienna.userData.subscribe('', function () {
