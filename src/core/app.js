@@ -65,7 +65,11 @@
     if (hasDocuments() && !this._docWatch) {
       var self = this;
       var sig = function () {
-        return Sienna.documents.list().map(function (d) { return d.id + ':' + d.name; }).join('|');
+        // Which documents there are and what they are called — plus the order
+        // of the recently-opened list, since File ▸ Recent is part of the menu
+        // and re-orders on every open.
+        return Sienna.documents.list().map(function (d) { return d.id + ':' + d.name; }).join('|')
+          + '#' + Sienna.documents.recent().map(function (d) { return d.id; }).join(',');
       };
       var last = sig();
       this._docWatch = Sienna.userData.subscribe('', function () {

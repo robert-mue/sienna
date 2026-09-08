@@ -53,6 +53,8 @@
     geometry: null,
     create: null,
     validate: null,
+    extraItems: null,    // () => menu items, appended to File before Recent
+    recentMax: 10,
   };
 
   /**
@@ -75,6 +77,39 @@
     return id;
   }
 
+  /**
+   * The recently-opened list, newest first, as ids under `config.root`.
+   *
+   * Stored beside the documents rather than in them, at `recent/<root>`, so it
+   * survives a reload and so `exportAll` — which bundles the root and nothing
+   * else — does not carry a menu's history into a backup. Written straight to
+   * `userData`, never dispatched: opening a document is navigation, and an
+   * undo that silently re-ordered a menu would be a strange thing to offer.
+   *
+   * Read filters out ids that no longer exist, so a deleted document leaves no
+   * dead entry behind, and the stored list is only pruned when something is
+   * opened. That keeps reading cheap and side-effect-free.
+   */
+  function recentKey() {
+    return 'recent/' + config.root;
+  }
+
+  function recentIds() {
+    var raw = Sienna.userData.get(recentKey());
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(function (id) {
+      return typeof id === 'string' && !!Sienna.userData.get(path(id));
+    });
+  }
+
+  function touchRecent(docPath) {
+    if (!docPath || docPath.indexOf(config.root + '/') !== 0) return;
+    var id = docPath.slice(config.root.length + 1);
+    var list = recentIds().filter(function (x) { return x !== id; });
+    list.unshift(id);
+    Sienna.userData.set(recentKey(), list.slice(0, config.recentMax));
+  }
+
   Sienna.documents = {
     /**
      * An app declares itself here. Everything is optional except that opening
@@ -82,7 +117,8 @@
      *
      * @param {{root?:string, label?:string, labelPlural?:string, widget?:string,
      *          geometry?:{left?:number, top?:number, width?:number, height?:number},
-     *          create?:(id:string)=>object, validate?:(obj:object)=>void}} opts
+     *          create?:(id:string)=>object, validate?:(obj:object)=>void,
+     *          extraItems?:()=>Array, recentMax?:number}} opts
      */
     configure: function (opts) {
       Object.assign(config, opts || {});
@@ -237,6 +273,15 @@
       };
       if (config.geometry) cfg.geometry = Object.assign({}, config.geometry);
       app.addPanel(cfg);
+      touchRecent(docPath);
+    },
+
+    /** `[{ id, path, name }]` for the recently opened, newest first. */
+    recent: function () {
+      return recentIds().map(function (id) {
+        var doc = Sienna.userData.get(path(id)) || {};
+        return { id: id, path: path(id), name: doc.name || id };
+      });
     },
 
     /**
@@ -320,16 +365,49 @@
         });
       }
 
+      // Whatever else the app puts in File — formats belonging to some other
+      // program, typically. It comes after the shell's own commands and before
+      // the document lists, which is where a user looks for "and this other
+      // kind of file too".
+      var extra = typeof config.extraItems === 'function' ? config.extraItems() : null;
+      if (extra && extra.length) {
+        items.push({ label: '—' });
+        extra.forEach(function (it) { items.push(it); });
+      }
+
+      // Two lists, and they are NOT the same list shortened. `Recent` is the
+      // conventional handful you were last working on, in the order you last
+      // touched them. `All` is every stored document — needed because the
+      // store is the only copy there is, so a document must never become
+      // unreachable just by being old. A flat list of everything used to sit
+      // at the foot of this menu; at seventeen models that is not a menu.
       var docs = this.list();
       if (docs.length) {
         items.push({ label: '—' });
-        docs.forEach(function (doc) {
-          items.push({
-            label: doc.name,
-            onSelect: function () { self.open(app, doc.path, doc.name); },
-          });
+
+        var recent = this.recent();
+        items.push({
+          label: 'Recent',
+          items: recent.length
+            ? recent.map(openItem)
+            : [{ label: '(nothing opened yet)' }],
+        });
+
+        items.push({
+          label: 'All ' + plural(),
+          items: docs.slice().sort(function (a2, b2) {
+            return a2.name.localeCompare(b2.name);
+          }).map(openItem),
         });
       }
+
+      function openItem(doc) {
+        return {
+          label: doc.name,
+          onSelect: function () { self.open(app, doc.path, doc.name); },
+        };
+      }
+
       return items;
     },
 

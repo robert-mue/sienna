@@ -81,6 +81,14 @@ body {
   display: block;
 }
 
+/* A submenu of a submenu goes to the SIDE, not below: `top: 100%` is right for
+   a bar across the top of the window and wrong everywhere after that. Nothing
+   nested this far until File grew Recent and All. */
+.slx-submenu .slx-submenu {
+  top: 0;
+  left: 100%;
+}
+
 /* After a selection: keep the submenu closed until the pointer leaves the
    top-level item, even though it's still hovered. */
 .slx-menu-item.slx-suppress > .slx-submenu {
