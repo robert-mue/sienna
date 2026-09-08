@@ -71,6 +71,8 @@ $.widget('sienna.panel', {
       this._titlebar,
     );
 
+    this._applyAccent();
+
     if (this.options.minimizable) {
       this._minBtn = this._controlButton('slx-panel-min').appendTo(
         this._controls,
@@ -168,8 +170,56 @@ $.widget('sienna.panel', {
       return this.options.ref;
     }
     this.options.ref = value || '';
+    this._applyAccent();
     this._emitChange({ type: 'ref', payload: { ref: this.options.ref } });
     return this;
+  },
+
+  /**
+   * Tint the titlebar by SUBJECT: every panel viewing the same `ref` gets the
+   * same colour, and a different `ref` a different one. With half a dozen
+   * panels open across three documents, colour is what lets you find the ones
+   * that belong together without reading a single title.
+   *
+   * The colour comes from a hash of the `ref`, so it is stable for the life of
+   * the document and needs nothing stored. It is chosen from a PALETTE rather
+   * than by taking the hash modulo 360: a raw hue is spread over values a human
+   * cannot tell apart, and the first attempt at this gave three of seventeen
+   * models the same hue and four more within three degrees of each other, which
+   * is the failure the colour exists to prevent. Twelve hues at thirty degrees,
+   * each at two lightnesses, gives 24 combinations that are all visibly
+   * different from one another.
+   *
+   * Both lightnesses are dark enough to keep white text readable. An unbound
+   * panel keeps the stylesheet's own colour — not everything is a view of
+   * something.
+   */
+  _applyAccent() {
+    const el = this.element[0];
+    const ref = this.options.ref;
+    if (!ref) {
+      el.style.removeProperty('--slx-titlebar-bg');
+      return;
+    }
+    // FNV-1a, then murmur3's finalizer. The mixing step is the part that
+    // matters: without it, strings as similar as `models/model2` and
+    // `models/model3` hash to neighbouring values and so to the same colour.
+    let h = 0x811c9dc5;
+    for (let i = 0; i < ref.length; i++) {
+      h = Math.imul(h ^ ref.charCodeAt(i), 0x01000193);
+    }
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b);
+    h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35);
+    h ^= h >>> 16;
+
+    const slot = (h >>> 0) % 24;
+    const hue = (slot % 12) * 30 + 15;
+    const light = slot < 12 ? 26 : 34;
+    // 38%, not the 22% this started at: at low saturation two hues thirty
+    // degrees apart are both just "brown", which is no use to someone scanning
+    // for a model's panels. Dark enough at either lightness that white titlebar
+    // text stays above 4.5:1 on the worst hue.
+    el.style.setProperty('--slx-titlebar-bg', 'hsl(' + hue + ', 38%, ' + light + '%)');
   },
 
   /** @returns {string} this panel's stable instance id */

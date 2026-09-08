@@ -55,6 +55,7 @@
     validate: null,
     extraItems: null,    // () => menu items, appended to File before Recent
     recentMax: 10,
+    panelTitle: null,    // (doc, app) => string, names a document's panel
   };
 
   /**
@@ -137,7 +138,8 @@
      * @param {{root?:string, label?:string, labelPlural?:string, widget?:string,
      *          geometry?:{left?:number, top?:number, width?:number, height?:number},
      *          create?:(id:string)=>object, validate?:(obj:object)=>void,
-     *          extraItems?:()=>Array, recentMax?:number}} opts
+     *          extraItems?:()=>Array, recentMax?:number,
+     *          panelTitle?:(doc:object, app:object)=>string}} opts
      */
     configure: function (opts) {
       Object.assign(config, opts || {});
@@ -285,8 +287,14 @@
       // `geometry` is passed only when the app asked for one: addPanel treats
       // an absent geometry and an undefined one differently from a partial
       // object, and the panel default must survive an app that never set it.
+      // An app may name its panels itself: a workspace with several documents
+      // open in several kinds of widget needs a title that says which is which,
+      // and only the app knows what its scheme is.
+      var named = typeof config.panelTitle === 'function'
+        ? config.panelTitle({ id: docPath.split('/').pop(), path: docPath, name: doc.name }, app)
+        : null;
       var cfg = {
-        title: title || doc.name || docPath.split('/').pop(),
+        title: named || title || doc.name || docPath.split('/').pop(),
         widget: config.widget,
         ref: docPath,
       };

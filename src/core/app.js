@@ -94,6 +94,16 @@
     return this.$workspace.workspace('addPanel', config);
   };
 
+  /** @returns {JQuery[]} the open panels — an app needs these to name a new one. */
+  App.prototype.panels = function () {
+    return this.$workspace.workspace('panels');
+  };
+
+  /** @returns {?string} the widget name a panel is hosting, or null. */
+  App.prototype.widgetOf = function ($panel) {
+    return this.$workspace.workspace('widgetOf', $panel);
+  };
+
   /** Remove every open panel (also clears the persisted state). */
   App.prototype.clearWorkspace = function () {
     this.$workspace.workspace('clear');

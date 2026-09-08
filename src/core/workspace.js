@@ -152,6 +152,12 @@ $.widget('sienna.workspace', {
     return this._entries.map((e) => e.$panel);
   },
 
+  /** @returns {?string} the widget a panel is hosting, or null for a bare panel */
+  widgetOf($panel) {
+    const entry = this._entries.find((e) => e.$panel[0] === $panel[0]);
+    return entry ? (entry.widget || null) : null;
+  },
+
   /** @returns {?JQuery} the open panel with this id, or null */
   panelById(id) {
     const entry = this._entries.find((e) => e.$panel.panel('id') === id);
