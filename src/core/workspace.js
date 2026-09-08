@@ -179,7 +179,10 @@ $.widget('sienna.workspace', {
           inst && typeof inst.state === 'function' ? inst.state() : {};
         return {
           widget: e.widget,
-          title: e.title,
+          // The LIVE title, not the one addPanel was given: a title can be
+          // changed after the fact (`$panel.panel('title', …)`), and reading
+          // the stale entry meant such a change was lost on the next reload.
+          title: e.$panel.panel('title'),
           id: e.$panel.panel('id'),
           ref: e.$panel.panel('ref'),
           options: { ...e.options, ...state },

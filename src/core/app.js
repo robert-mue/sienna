@@ -94,6 +94,12 @@
     return this.$workspace.workspace('addPanel', config);
   };
 
+  /** Save the workspace now. Needed after changing panels outside the widgets. */
+  App.prototype.persist = function () {
+    this._persist();
+    return this;
+  };
+
   /** @returns {JQuery[]} the open panels — an app needs these to name a new one. */
   App.prototype.panels = function () {
     return this.$workspace.workspace('panels');
