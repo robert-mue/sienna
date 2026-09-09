@@ -191,19 +191,28 @@ $.widget('sienna.panel', {
    * content gets the whole box. Above it, everything comes back.
    */
   _measure() {
-    if (!this.options.thumbnailable) return;
-    const w = this.element.outerWidth();
-    const h = this.element.outerHeight();
-    const thumb = !this._minimized && (w < THUMB_W || h < THUMB_H);
-    if (thumb !== this._thumb) {
-      this._thumb = thumb;
-      this.element.toggleClass('slx-panel--thumb', thumb);
+    if (this.options.thumbnailable) {
+      const w = this.element.outerWidth();
+      const h = this.element.outerHeight();
+      const thumb = !this._minimized && (w < THUMB_W || h < THUMB_H);
+      if (thumb !== this._thumb) {
+        this._thumb = thumb;
+        this.element.toggleClass('slx-panel--thumb', thumb);
+      }
+      // AFTER the state, never before: the button's label is a function of it,
+      // and refreshing first left the tooltip describing the size the panel had
+      // a moment ago. Refreshed on every measure rather than only on a
+      // crossing, so a resize by hand keeps the label honest too.
+      this._updateButtons();
     }
-    // AFTER the state, never before: the button's label is a function of it,
-    // and refreshing first left the tooltip describing the size the panel had
-    // a moment ago. Refreshed on every measure rather than only on a crossing,
-    // so a resize by hand keeps the label honest too.
-    this._updateButtons();
+
+    // Tell the content. A widget that redraws to fit — a diagram, a plot — has
+    // to know, and its own ResizeObserver is not a dependable way to find out:
+    // observers deliver on the rendering lifecycle, so they are late at best
+    // and, in a tab that is not being painted, never. When the panel resized
+    // ITSELF it already knows, and saying so directly is both immediate and
+    // certain. The event bubbles, so a widget can listen on the panel.
+    this.element.trigger('slxpanelresize', [{ thumbnail: !!this._thumb }]);
   },
 
   /** Is this panel currently showing as a chrome-free miniature? */

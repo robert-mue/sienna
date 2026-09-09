@@ -113,6 +113,32 @@
     },
 
     /**
+     * Be told when the host panel changes size, and whether it is now small
+     * enough to be a thumbnail: `handler({ thumbnail })`.
+     *
+     * Prefer this to a `ResizeObserver` of your own for anything that must be
+     * RIGHT rather than merely eventually right. An observer reports on the
+     * rendering lifecycle, so it is late by a frame and, in a tab that is not
+     * being painted, silent altogether — a widget that only re-fits from an
+     * observer can sit at the wrong scale indefinitely. The panel knows the
+     * moment it resizes itself and says so synchronously. An observer is still
+     * the right tool for size changes the panel did not cause, such as the
+     * window resizing; use both.
+     *
+     * Bound through `_on`, so it is released when the widget is destroyed.
+     */
+    _watchPanelResize: function (handler) {
+      var $p = this._panel();
+      if (!$p.length) return;
+      var self = this;
+      this._on($p, {
+        slxpanelresize: function (event, info) {
+          handler.call(self, info || {});
+        },
+      });
+    },
+
+    /**
      * Dispatch a logged user action named '<widgetName>.<name>' targeting the
      * host panel. `run` performs the effect; its userData changes are captured.
      */
