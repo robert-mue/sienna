@@ -17,6 +17,10 @@
  * Classic script: uses the global jQuery (`$`) provided by the vendored
  * jquery.min.js + jquery-ui.js; no imports/exports.
  */
+/** Below either of these a panel is a thumbnail: too small to work in. */
+const THUMB_W = 380;
+const THUMB_H = 230;
+
 $.widget('sienna.panel', {
   options: {
     title: 'Panel',
@@ -33,6 +37,13 @@ $.widget('sienna.panel', {
      * @type {string}
      */
     ref: '',
+    /**
+     * May this panel shrink to a chrome-free miniature? A widget that IS its
+     * controls has nothing left when they go, and opts out.
+     */
+    thumbnailable: true,
+    /** {width, height} the "working size" button opens this panel at. */
+    workingSize: null,
     /**
      * Stable identifier for this panel instance (e.g. `'p3'`). Normally assigned
      * by the workspace and persisted. Distinct from `ref`: `id` names the panel,
@@ -81,6 +92,19 @@ $.widget('sienna.panel', {
         click: (e) => {
           e.preventDefault();
           this.minimize();
+        },
+      });
+    }
+    // Between minimise and maximise, because that is where it sits on the size
+    // ladder: minimised, thumbnail, working, maximised.
+    if (this.options.thumbnailable) {
+      this._workBtn = this._controlButton('slx-panel-work').appendTo(
+        this._controls,
+      );
+      this._on(this._workBtn, {
+        click: (e) => {
+          e.preventDefault();
+          this.workingSize();
         },
       });
     }
@@ -133,12 +157,90 @@ $.widget('sienna.panel', {
           if (!this._maximized && !this._minimized) {
             this._geom = this._readGeometry();
           }
+          this._measure();
           this._emitChange({ type: 'resize', payload: this.geometry() });
         },
       });
     }
 
+    // A panel is a thumbnail when it is too small to be worked in — not when
+    // some state says so. The rule then explains itself, needs nothing stored,
+    // and follows a drag of the resize handle continuously.
+    // The observer catches size changes nobody here initiated — the window
+    // resizing, a maximised neighbour. Every change we make ourselves calls
+    // `_measure` directly instead of waiting for it, because an observer is not
+    // a guarantee: a hidden tab runs no rendering lifecycle, so its callbacks
+    // never arrive, and a state that is only ever right after a paint is not a
+    // state the rest of the code can read.
+    if (window.ResizeObserver) {
+      this._ro = new ResizeObserver(() => this._measure());
+      this._ro.observe(this.element[0]);
+    }
+
     this._updateButtons();
+    this._measure();
+  },
+
+  /**
+   * Below `THUMB_W` wide or `THUMB_H` tall there is not enough panel left to
+   * hold a toolbar AND anything to use it on, so the chrome goes and the
+   * content gets the whole box. Above it, everything comes back.
+   */
+  _measure() {
+    if (!this.options.thumbnailable) return;
+    const w = this.element.outerWidth();
+    const h = this.element.outerHeight();
+    const thumb = !this._minimized && (w < THUMB_W || h < THUMB_H);
+    if (thumb === this._thumb) return;
+    this._thumb = thumb;
+    this.element.toggleClass('slx-panel--thumb', thumb);
+  },
+
+  /** Is this panel currently showing as a chrome-free miniature? */
+  thumbnailed() {
+    return !!this._thumb;
+  },
+
+  /**
+   * Grow to the size this panel is meant to be worked in — and back again.
+   *
+   * A toggle, like maximise: the geometry it grew FROM is remembered, so the
+   * one button both opens a thumbnail up and puts it back. Growing keeps the
+   * top-left corner where it is, since a panel that jumped across the workspace
+   * as it grew would lose the user's place; the size is clamped to the
+   * workspace so it cannot open to somewhere off the edge.
+   */
+  workingSize(on) {
+    if (this._minimized) this.minimize(false);
+    if (this._maximized) this.maximize(false);
+
+    const grow = on === undefined ? !this._preWork : !!on;
+    if (grow === !!this._preWork) return this;
+
+    if (!grow) {
+      const back = this._preWork;
+      this._preWork = null;
+      this.setGeometry(back);
+      this._updateButtons();
+      this._emitChange({ type: 'resize', payload: this.geometry() });
+      return this;
+    }
+
+    const want = this.options.workingSize || { width: 640, height: 420 };
+    const $ws = this.element.parent();
+    const maxW = $ws.length ? $ws.width() : want.width;
+    const maxH = $ws.length ? $ws.height() : want.height;
+    const g = this.geometry();
+    this._preWork = g;
+    this.setGeometry({
+      left: Math.max(0, Math.min(g.left, maxW - Math.min(want.width, maxW))),
+      top: Math.max(0, Math.min(g.top, maxH - Math.min(want.height, maxH))),
+      width: Math.min(want.width, maxW),
+      height: Math.min(want.height, maxH),
+    });
+    this._updateButtons();
+    this._emitChange({ type: 'resize', payload: this.geometry() });
+    return this;
   },
 
   _controlButton(cls) {
@@ -249,6 +351,7 @@ $.widget('sienna.panel', {
     if (!this._maximized && !this._minimized) {
       this._applyGeometry(this._geom);
     }
+    this._measure();
     return this;
   },
 
@@ -275,6 +378,7 @@ $.widget('sienna.panel', {
       this.element.css('height', this._geom.height ?? '');
       this._setResizableEnabled(true);
     }
+    this._measure();
     this._updateButtons();
     this._emitChange({ type: 'minimize', payload: { minimized: this._minimized } });
     return this;
@@ -297,6 +401,7 @@ $.widget('sienna.panel', {
       this._setDraggableEnabled(true);
       this._setResizableEnabled(true);
     }
+    this._measure();
     this._updateButtons();
     this._emitChange({ type: 'maximize', payload: { maximized: this._maximized } });
     return this;
@@ -346,6 +451,13 @@ $.widget('sienna.panel', {
         .attr('aria-label', this._minimized ? 'Restore' : 'Minimize')
         .attr('title', this._minimized ? 'Restore' : 'Minimize');
     }
+    if (this._workBtn) {
+      const back = !!this._preWork;
+      this._workBtn
+        .attr('aria-label', back ? 'Back to the smaller size' : 'Open to a working size')
+        .attr('title', back ? 'Back to the smaller size' : 'Open to a working size')
+        .toggleClass('slx-panel-shrink', back);
+    }
     if (this._maxBtn) {
       this._maxBtn
         .attr('aria-label', this._maximized ? 'Restore' : 'Maximize')
@@ -377,6 +489,7 @@ $.widget('sienna.panel', {
   },
 
   _destroy() {
+    if (this._ro) { this._ro.disconnect(); this._ro = null; }
     if (this.options.draggable && this.element.data('ui-draggable')) {
       this.element.draggable('destroy');
     }
@@ -385,7 +498,8 @@ $.widget('sienna.panel', {
     }
     this.element
       .removeClass(
-        'slx-panel slx-panel--draggable slx-panel--minimized slx-panel--maximized',
+        'slx-panel slx-panel--draggable slx-panel--minimized slx-panel--maximized'
+          + ' slx-panel--thumb',
       )
       .empty();
   },

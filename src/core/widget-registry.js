@@ -20,11 +20,16 @@
   Sienna.widgetRegistry = {
     /**
      * @param {string} name
-     * @param {{ src: string, label?: string, title?: string, options?: object }} spec
+     * @param {{ src: string, label?: string, title?: string, options?: object,
+     *           thumbnail?: boolean, workingSize?: {width:number, height:number} }} spec
      *   src    — widget script URL, relative to index.html
      *   label  — menu label (default: name)
      *   title  — panel titlebar text (default: label)
      *   options — default options passed to the widget (default: {})
+     *   thumbnail — may this widget shrink to a chrome-free miniature?
+     *     (default true). A widget that IS its controls — a transport, a row of
+     *     buttons — has nothing left when the controls go, and should say so.
+     *   workingSize — the size "open to a working size" opens it at
      */
     register: function (name, spec) {
       spec = spec || {};
@@ -36,6 +41,8 @@
         label: spec.label || name,
         title: spec.title || spec.label || name,
         options: spec.options || {},
+        thumbnail: spec.thumbnail !== false,
+        workingSize: spec.workingSize || null,
         method: null,
         promise: null,
       };
@@ -61,6 +68,16 @@
           options: e.options,
         };
       });
+    },
+
+    /** @returns {?object} one widget's registered spec, or null if unknown. */
+    spec: function (name) {
+      var e = registry[name];
+      if (!e) return null;
+      return {
+        name: name, label: e.label, title: e.title, options: e.options,
+        thumbnail: e.thumbnail, workingSize: e.workingSize,
+      };
     },
 
     /** Called by a widget script once loaded, to record its plugin method name. */

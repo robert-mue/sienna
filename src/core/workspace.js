@@ -56,7 +56,7 @@ $.widget('sienna.workspace', {
    *           closable?: boolean, draggable?: boolean, resizable?: boolean,
    *           minimizable?: boolean, maximizable?: boolean, ref?: string,
    *           id?: string, geometry?: object, minimized?: boolean,
-   *           maximized?: boolean }} config
+   *           maximized?: boolean, workingSize?: {width:number, height:number} }} config
    * @returns {Promise<JQuery>} the panel element
    */
   async addPanel(config = {}) {
@@ -74,7 +74,14 @@ $.widget('sienna.workspace', {
       geometry,
       minimized = false,
       maximized = false,
+      workingSize,
     } = config;
+
+    // What the widget said about itself when it registered. A caller may still
+    // override — `documents` passes the size a document's panel opens at, which
+    // is a better answer than the widget's own for a document.
+    const spec = widget && Sienna.widgetRegistry && Sienna.widgetRegistry.spec
+      ? Sienna.widgetRegistry.spec(widget) : null;
 
     const panelId = id || this._mintId();
     const $panel = $('<div>').appendTo(this.element);
@@ -87,6 +94,8 @@ $.widget('sienna.workspace', {
       maximizable,
       ref,
       id: panelId,
+      thumbnailable: spec ? spec.thumbnail : true,
+      workingSize: workingSize || (spec && spec.workingSize) || null,
       onClose: () => {
         this._forget($panel);
         this._dispatch('panel.close', panelId, {});

@@ -205,6 +205,24 @@ body {
   box-shadow: 3px -3px 0 -1.5px currentColor;
 }
 
+/* "Open to a working size": arrows out of a corner, mirrored when it will put
+   the panel back instead. */
+.slx-panel-work::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  box-shadow: 3px -3px 0 -1.5px currentColor;
+}
+
+.slx-panel-work.slx-panel-shrink::before {
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid currentColor;
+  box-shadow: none;
+}
+
 .slx-panel-close::before {
   content: '\00d7';
   font-size: 17px;
@@ -214,6 +232,19 @@ body {
   padding: 16px;
   flex: 1;
   overflow: auto;
+}
+
+/* Thumbnail: too small to work in, so the panel stops pretending. Chrome — a
+   widget's toolbars, marked `slx-chrome` — is hidden and the content takes the
+   whole box, padding included, because at this size what the user wants from a
+   panel is to SEE which one it is. The widget itself decides what a miniature
+   of it looks like; all the shell does is get out of the way. */
+.slx-panel--thumb .slx-chrome {
+  display: none !important;
+}
+
+.slx-panel--thumb .slx-panel-content {
+  padding: 0;
 }
 
 /* Minimised: collapse to just the titlebar. */

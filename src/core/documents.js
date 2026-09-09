@@ -298,7 +298,12 @@
         widget: config.widget,
         ref: docPath,
       };
-      if (config.geometry) cfg.geometry = Object.assign({}, config.geometry);
+      if (config.geometry) {
+        cfg.geometry = Object.assign({}, config.geometry);
+        // The size a document opens at is also the size it should re-open to
+        // from a thumbnail — one answer to "how big should this be?", not two.
+        cfg.workingSize = { width: config.geometry.width, height: config.geometry.height };
+      }
       app.addPanel(cfg);
       touchRecent(docPath);
       this.setCurrent(docPath);
