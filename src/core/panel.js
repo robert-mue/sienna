@@ -21,6 +21,10 @@
 const THUMB_W = 380;
 const THUMB_H = 230;
 
+/** Where "back to the smaller size" goes when nothing was remembered. */
+const THUMB_BACK_W = 300;
+const THUMB_BACK_H = 200;
+
 $.widget('sienna.panel', {
   options: {
     title: 'Panel',
@@ -191,9 +195,15 @@ $.widget('sienna.panel', {
     const w = this.element.outerWidth();
     const h = this.element.outerHeight();
     const thumb = !this._minimized && (w < THUMB_W || h < THUMB_H);
-    if (thumb === this._thumb) return;
-    this._thumb = thumb;
-    this.element.toggleClass('slx-panel--thumb', thumb);
+    if (thumb !== this._thumb) {
+      this._thumb = thumb;
+      this.element.toggleClass('slx-panel--thumb', thumb);
+    }
+    // AFTER the state, never before: the button's label is a function of it,
+    // and refreshing first left the tooltip describing the size the panel had
+    // a moment ago. Refreshed on every measure rather than only on a crossing,
+    // so a resize by hand keeps the label honest too.
+    this._updateButtons();
   },
 
   /** Is this panel currently showing as a chrome-free miniature? */
@@ -204,33 +214,48 @@ $.widget('sienna.panel', {
   /**
    * Grow to the size this panel is meant to be worked in — and back again.
    *
-   * A toggle, like maximise: the geometry it grew FROM is remembered, so the
-   * one button both opens a thumbnail up and puts it back. Growing keeps the
-   * top-left corner where it is, since a panel that jumped across the workspace
-   * as it grew would lose the user's place; the size is clamped to the
-   * workspace so it cannot open to somewhere off the edge.
+   * The button moves between the two rungs of the ladder it sits on —
+   * THUMBNAIL and WORKING — and which way it goes is decided by the panel's
+   * current size. Two earlier versions got this wrong in instructive ways.
+   *
+   * The first asked "did I grow this panel earlier?", which is invisible
+   * history: after a reload, where the remembered geometry (being in memory) is
+   * gone, a full-size panel grew again instead of shrinking. The second asked
+   * "is it smaller than working size?" and shrank to whatever size it had been
+   * before, which meant a panel at some middling size toggled between that size
+   * and working size and never reached a thumbnail at all — the button had
+   * stopped being a thumbnail control.
+   *
+   * So: a thumbnail grows to working size; anything else shrinks to a
+   * thumbnail. The remembered geometry is used only when it was itself a
+   * thumbnail, so a hand-sized thumbnail is preserved rather than replaced by
+   * the default. The top-left corner stays put — a panel that jumped across the
+   * workspace as it resized would lose the user's place — and growth is clamped
+   * to the workspace so it cannot open off the edge.
    */
   workingSize(on) {
     if (this._minimized) this.minimize(false);
     if (this._maximized) this.maximize(false);
 
-    const grow = on === undefined ? !this._preWork : !!on;
-    if (grow === !!this._preWork) return this;
+    const want = this.options.workingSize || { width: 640, height: 420 };
+    const g = this.geometry();
+    const grow = on === undefined ? !!this._thumb : !!on;
 
     if (!grow) {
-      const back = this._preWork;
+      const kept = this._preWork;
+      const small = (kept && (kept.width < THUMB_W || kept.height < THUMB_H))
+        ? kept
+        : { width: THUMB_BACK_W, height: THUMB_BACK_H };
       this._preWork = null;
-      this.setGeometry(back);
+      this.setGeometry({ left: g.left, top: g.top, width: small.width, height: small.height });
       this._updateButtons();
       this._emitChange({ type: 'resize', payload: this.geometry() });
       return this;
     }
 
-    const want = this.options.workingSize || { width: 640, height: 420 };
     const $ws = this.element.parent();
     const maxW = $ws.length ? $ws.width() : want.width;
     const maxH = $ws.length ? $ws.height() : want.height;
-    const g = this.geometry();
     this._preWork = g;
     this.setGeometry({
       left: Math.max(0, Math.min(g.left, maxW - Math.min(want.width, maxW))),
@@ -452,11 +477,12 @@ $.widget('sienna.panel', {
         .attr('title', this._minimized ? 'Restore' : 'Minimize');
     }
     if (this._workBtn) {
-      const back = !!this._preWork;
+      const shrink = !this._thumb;
+      const label = shrink ? 'Shrink to a thumbnail' : 'Open to a working size';
       this._workBtn
-        .attr('aria-label', back ? 'Back to the smaller size' : 'Open to a working size')
-        .attr('title', back ? 'Back to the smaller size' : 'Open to a working size')
-        .toggleClass('slx-panel-shrink', back);
+        .attr('aria-label', label)
+        .attr('title', label)
+        .toggleClass('slx-panel-shrink', shrink);
     }
     if (this._maxBtn) {
       this._maxBtn
