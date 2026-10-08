@@ -7,12 +7,15 @@ captures *why it's shaped this way* and *how we got here*, so a fresh session
 (human or AI) can pick up with the reasoning intact.
 
 Status: base app complete; **all planned phases 0–6 of the data/logging layer
-complete** (2026-07-22). Three deferred tasks remain — see §14.
+complete** (2026-07-22). Three deferred tasks remain — see §14. Containers and
+layouts designed 2026-10-08, not yet built — see Part III.
 
 - **Part I — The base app** (§§1–7): a static jQuery SPA of a menu + a workspace
   of panels hosting dynamically loaded widgets.
 - **Part II — Logging, user data, undo & replay** (§§8–15): the layer that
   captures user data, records interactions, and adds undo/redo and replay.
+- **Part III — Containers and layouts** (§§16–23): app-specific arrangements of
+  panels — containers, tiled/tabbed/floating modes, placement by role.
 
 ---
 
@@ -281,3 +284,124 @@ sandbox, hence the `--dump-dom` harness. Note: `node` is via **nvm** — `source
 - Read `CLAUDE.md` for module responsibilities and the load order; read this file
   for the *why*. The full multi-phase plan and decisions also live in Claude's
   project memory.
+
+---
+
+# Part III — Containers and layouts
+
+*Designed 2026-10-08; not yet built.* Starts from sketches made in an earlier
+claude.ai chat (`container.js`, `layouts.js`, a handover note), checked against
+the code and trimmed to what the first apps need.
+
+## 16. The problem
+
+A free-floating workspace gets out of hand quickly: every new panel cascades
+from the top-left and panels pile on top of one another. Each app built on
+sienna wants its own fixed arrangement instead. Simile's, matching the original
+Simile, is:
+
+```
+workspace                 tiled, side by side
+├─ Model                  container, floating      ← diagrams
+└─ Simulation             container, tiled
+   ├─ Run control         panel
+   └─ Displays            container, tabbed        ← plots, tables
+      ├─ plot 1
+      └─ plot 2
+```
+
+## 17. A container is a panel holding another workspace
+
+A **container** is an ordinary content widget whose content is a nested
+`.workspace()`. Its children are ordinary panels, so they get dragging,
+resizing, min/max, thumbnails and titlebar colour from the existing code, one
+level deeper. Two things already behave correctly at depth, checked in the code
+before deciding: panels use `containment: 'parent'`, so a child cannot be
+dragged out of its container; and maximise sets `100%` of the parent, so a
+maximised child fills its container, not the window.
+
+Containers **have titlebars** like any panel, for now — useful while developing,
+and cheap to reverse later (a frameless option). A container **stays when its
+last child closes**: the layout put it there, not its contents.
+
+## 18. Three arrangement modes, owned by the workspace
+
+The mode is an option of the **workspace**, not of the container, so it applies
+at every level, the top one included:
+
+- **floating** — today's behaviour, and the default, so existing apps and saved
+  sessions are unchanged.
+- **tiled** — children fill the workspace in a row or a column, each holding a
+  stored *proportion* changed by dragging the divider between neighbours. No
+  dragging by the titlebar. Minimising collapses a child to its titlebar and the
+  others take the space.
+- **tabbed** — one child visible, filling the workspace, with a tab strip (title,
+  subject colour, close). Minimise does not apply.
+
+A child keeps its floating geometry while tiled or tabbed, so that a later
+switch back to floating can restore it.
+
+**Hidden tabs are the trap.** A child in a hidden tab has no size and gets no
+resize notice — the same blindness as a hidden browser tab (simile's
+RESTART.md). Showing a tab must announce it, `slxpanelresize` as a resize
+does, or a plot that ran while hidden draws at zero size. The standing rule
+applies: whoever causes a change announces it.
+
+## 19. Placement by role
+
+The sketches had no way for a panel to reach a container: File ▸ Open and the
+Widgets menu add to the top level, and containment stops a panel being dragged
+in. So:
+
+- a widget declares a **role** when it registers (`role: 'display'`), beside
+  `workingSize` and `thumbnail`;
+- a container declares the roles it **accepts**;
+- `App.addPanel` puts a new panel in the first container, depth first, that
+  accepts its role, and at the top level if none does.
+
+Layouts name roles, never widgets, so a new kind of plot lands in Displays
+without anyone touching the layout.
+
+## 20. Layouts
+
+A layout is **`workspace.serialize()`-shaped data**: an array of panels, where a
+container carries its mode and its own children. An app registers its
+**built-in** layouts in its manifest, as it does widgets, and the one marked
+default is applied when there is no saved session. Containers in a layout are
+empty; the user's panels arrive by role.
+
+## 21. Plumbing the sketches missed
+
+- **Nested ids.** A nested workspace mints ids under its container's
+  (`p3/p0`), so they never collide; `panelById` resolves a path, so replay
+  finds nested panels.
+- **Changes and raises go up.** A nested workspace passes `onChange` and
+  `onRaise` to its container's workspace, or nothing inside a container would be
+  saved and raising a diagram would no longer make its model current.
+- **Restore once.** `serialize`/`restore` recurse through containers (a
+  `container: true` registry flag); the container must not also restore its
+  children from its options, or they are built twice.
+
+## 22. Order of work
+
+Each step tried in `examples/demo/` before the next:
+
+1. container widget, nested ids, change/raise propagation, recursive
+   save/restore, replay by path;
+2. tiled and tabbed modes, including the tab-shown announcement;
+3. placement by role;
+4. built-in layouts registered by the app, applied when there is no session;
+5. Simile's layout — in the simile repo, not here.
+
+## 23. Cut, deliberately
+
+Kept out to stay close to what Simile needs now; the data shapes leave room for
+each later.
+
+1. **User-made layouts** — "save current arrangement as", rename, delete.
+   Cheap when wanted: a saved layout is just `serialize()` with refs stripped.
+2. **Layout files and a shared gallery** — export/import, remote layout scripts.
+3. **Switching mode at runtime** — modes are set by the layout for now.
+4. **`focusGroup`** (the Model/Simulation mode switch) — a tiled top level shows
+   both at once, which is what Simile had.
+5. **Dragging a panel between containers** — role placement covers the need.
