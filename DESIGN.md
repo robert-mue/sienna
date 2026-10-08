@@ -378,9 +378,14 @@ empty; the user's panels arrive by role.
 - **Changes and raises go up.** A nested workspace passes `onChange` and
   `onRaise` to its container's workspace, or nothing inside a container would be
   saved and raising a diagram would no longer make its model current.
-- **Restore once.** `serialize`/`restore` recurse through containers (a
-  `container: true` registry flag); the container must not also restore its
-  children from its options, or they are built twice.
+- **Restore once.** The sketches had `serialize`/`restore` recurse through
+  containers on a registry flag *and* the container restore its children from
+  its options, which builds them twice. As built, the container's `state()`
+  returns its children, so they are saved inside its own panel entry and
+  rebuilt only by its constructor; the workspace needs no flag and no
+  recursion. Rebuilding is asynchronous, so the container exposes a `ready`
+  promise and `addPanel` waits for any widget that has one — or a container
+  inside a container would not exist yet for whatever comes next.
 
 ## 22. Order of work
 

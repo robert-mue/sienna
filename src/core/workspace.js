@@ -24,6 +24,12 @@ $.widget('sienna.workspace', {
     onChange: null,
     /** Called with (ref, $panel) when a panel is brought to the front. */
     onRaise: null,
+    /**
+     * Prefix for minted panel ids. A workspace nested in a container panel
+     * mints under that panel's id (`'p3/'`), so an id is a PATH from the top
+     * level and names one panel however deep it sits.
+     */
+    idPrefix: '',
   },
 
   _create() {
@@ -39,7 +45,46 @@ $.widget('sienna.workspace', {
 
   /** Mint a stable, readable panel id ('p0', 'p1', …) unique in this workspace. */
   _mintId() {
-    return 'p' + this._idCounter++;
+    return this.options.idPrefix + 'p' + this._idCounter++;
+  },
+
+  /**
+   * Move the id counter past any of these ids that are this workspace's own,
+   * so a panel added later never mints one already taken — whether the taken
+   * ones came from a restore or from a caller (replay) naming its panel.
+   */
+  _seedIds(ids) {
+    const prefix = this.options.idPrefix;
+    for (const id of ids) {
+      if (typeof id !== 'string' || !id.startsWith(prefix)) continue;
+      const m = /^p(\d+)$/.exec(id.slice(prefix.length));
+      if (m) this._idCounter = Math.max(this._idCounter, Number(m[1]) + 1);
+    }
+  },
+
+  /**
+   * Where an id lives, relative to this workspace: `{ own }` when it names one
+   * of this workspace's panels, `{ via }` with the id of the child panel whose
+   * nested workspace holds it, or null when it is not under this one at all.
+   */
+  _locate(id) {
+    const prefix = this.options.idPrefix;
+    if (typeof id !== 'string' || !id.startsWith(prefix)) return null;
+    const rest = id.slice(prefix.length);
+    const slash = rest.indexOf('/');
+    return slash < 0 ? { own: id } : { via: prefix + rest.slice(0, slash) };
+  },
+
+  /** The workspace nested in a panel (a container's), or null. */
+  _nestedOf($panel) {
+    const $ws = $panel.panel('content').children('.slx-workspace');
+    return $ws.length ? $ws : null;
+  },
+
+  /** This workspace's own panel with this id, or null. */
+  _ownPanel(id) {
+    const entry = this._entries.find((e) => e.$panel.panel('id') === id);
+    return entry ? entry.$panel : null;
   },
 
   /**
@@ -77,6 +122,15 @@ $.widget('sienna.workspace', {
       workingSize,
     } = config;
 
+    // An id naming a panel inside one of ours goes to the workspace that owns
+    // it — which is how replay puts a recorded child back in its container.
+    const where = id ? this._locate(id) : null;
+    if (where && where.via) {
+      const $host = this._ownPanel(where.via);
+      const $nested = $host && this._nestedOf($host);
+      if ($nested) return $nested.workspace('addPanel', config);
+    }
+
     // What the widget said about itself when it registered. A caller may still
     // override — `documents` passes the size a document's panel opens at, which
     // is a better answer than the widget's own for a document.
@@ -84,6 +138,7 @@ $.widget('sienna.workspace', {
       ? Sienna.widgetRegistry.spec(widget) : null;
 
     const panelId = id || this._mintId();
+    this._seedIds([panelId]);
     const $panel = $('<div>').appendTo(this.element);
     $panel.panel({
       title,
@@ -107,7 +162,11 @@ $.widget('sienna.workspace', {
         // which thing you are working on, so the host gets told. Kept as a
         // callback rather than a call into `documents`, because a workspace
         // holds panels and should not know that any of them view a document.
-        if (typeof this.options.onRaise === 'function') this.options.onRaise(ref, $panel);
+        // The LIVE ref, not the one this panel was made with — the same
+        // reasoning as serialize()'s live title.
+        if (typeof this.options.onRaise === 'function') {
+          this.options.onRaise($panel.panel('ref'), $panel);
+        }
       },
       onChange: (w, change) => {
         if (change) {
@@ -141,7 +200,13 @@ $.widget('sienna.workspace', {
     if (widget) {
       const method = await Sienna.widgetRegistry.loadWidget(widget);
       entry.method = method;
-      $panel.panel('content')[method]({ ...options });
+      const inst = $panel.panel('content')[method]({ ...options })[method]('instance');
+      // A widget with more to build after its constructor — a container
+      // restoring its children — says so with a `ready` promise, and the panel
+      // is not open until it settles.
+      if (inst && inst.ready && typeof inst.ready.then === 'function') {
+        await inst.ready;
+      }
     }
 
     if (minimized) $panel.panel('minimize', true);
@@ -167,10 +232,17 @@ $.widget('sienna.workspace', {
     return entry ? (entry.widget || null) : null;
   },
 
-  /** @returns {?JQuery} the open panel with this id, or null */
+  /**
+   * @returns {?JQuery} the open panel with this id, or null. An id is a path
+   *   (`'p3/p0'`), so this finds a panel inside a container too.
+   */
   panelById(id) {
-    const entry = this._entries.find((e) => e.$panel.panel('id') === id);
-    return entry ? entry.$panel : null;
+    const where = this._locate(id);
+    if (!where) return null;
+    if (where.own) return this._ownPanel(where.own);
+    const $host = this._ownPanel(where.via);
+    const $nested = $host && this._nestedOf($host);
+    return $nested ? $nested.workspace('panelById', id) : null;
   },
 
   /**
@@ -207,10 +279,7 @@ $.widget('sienna.workspace', {
     this.clear();
     this._suspend = true;
     // Seed the id counter past any restored ids so new panels can't collide.
-    for (const item of list) {
-      const m = /^p(\d+)$/.exec(item && item.id);
-      if (m) this._idCounter = Math.max(this._idCounter, Number(m[1]) + 1);
-    }
+    this._seedIds(list.map((item) => item && item.id));
     try {
       for (const item of list) {
         await this.addPanel(item);

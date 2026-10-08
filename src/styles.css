@@ -115,6 +115,25 @@ body {
   background-size: 20px 20px;
 }
 
+/* Container: a panel whose content is a nested workspace. The content gives
+   up its padding and scrolling to the workspace inside, which fills it and is
+   its own stacking context, so a child's z-index never competes with panels
+   outside the container. */
+.slx-panel-content.slx-container {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+.slx-container > .slx-workspace {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: #f4f5f8;
+  background-image: radial-gradient(#dfe1e8 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
 /* Panel ----------------------------------------------------------------- */
 .slx-panel {
   position: absolute;

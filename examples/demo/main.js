@@ -38,7 +38,10 @@
     return app.$workspace.workspace('panelById', id);
   }
   Sienna.actions.onReplay('panel.add', function (e) {
+    // The recorded id says where the panel goes: inside a container, an id
+    // is a path ('p3/p0'), and the workspace routes it there.
     return app.addPanel({
+      id: e.target,
       title: e.payload.title,
       widget: e.payload.widget || undefined,
       ref: e.payload.ref || '',
