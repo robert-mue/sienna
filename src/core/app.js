@@ -97,18 +97,57 @@
    */
   App.prototype.addPanel = function (config) {
     config = config || {};
-    var $ws = this.$workspace;
+    var self = this;
+    var top = this.$workspace;
+    var target = Promise.resolve(top);
     if (!config.id) {
       var spec = config.widget && Sienna.widgetRegistry.spec(config.widget);
       var role = config.role || (spec && spec.role);
-      $ws = $ws.workspace('workspaceFor', role) || $ws;
+      var ref = config.ref || '';
+      var $ws = top.workspace('workspaceFor', role, ref);
+      var plan = !$ws && ref ? top.workspace('templateFor', role, ref) : null;
+      if ($ws) {
+        target = Promise.resolve($ws);
+      } else if (plan) {
+        // This document has no collection here yet: make one from the template,
+        // then look again — it now holds a place for the panel (§19.1).
+        target = plan.$ws.workspace('addPanel', this._fromTemplate(plan.template, ref))
+          .then(function () { return top.workspace('workspaceFor', role, ref) || top; });
+      }
     }
-    var self = this;
-    return $ws.workspace('addPanel', config).then(function ($panel) {
+    return target.then(function ($ws) {
+      return $ws.workspace('addPanel', config);
+    }).then(function ($panel) {
       // Opened into a container in a tab not showing, it would be invisible.
-      self.$workspace.workspace('reveal', $panel);
+      top.workspace('reveal', $panel);
       return $panel;
     });
+  };
+
+  /**
+   * A template, made into one document's collection: its `ref` stamped
+   * throughout (so it belongs to the document, and wears its colour), marked
+   * to close itself once emptied, and titled after the document.
+   */
+  App.prototype._fromTemplate = function (template, ref) {
+    var copy = JSON.parse(JSON.stringify(template));
+    (function stamp(c) {
+      c.ref = ref;
+      ((c.options && c.options.children) || []).forEach(stamp);
+    })(copy);
+    copy.options = copy.options || {};
+    copy.options.fromTemplate = true;
+    copy.title = this._docName(ref) + ': ' + (template.title || 'Collection');
+    return copy;
+  };
+
+  /** A document's name, for titles: its own if it has one, else its id. */
+  App.prototype._docName = function (ref) {
+    if (hasDocuments()) {
+      var doc = Sienna.documents.list().find(function (d) { return d.path === ref; });
+      if (doc) return doc.name;
+    }
+    return String(ref).split('/').pop();
   };
 
   /** Save the workspace now. Needed after changing panels outside the widgets. */

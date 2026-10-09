@@ -379,6 +379,66 @@ where the id says. A panel opened into a container sitting in a tab that is
 not showing would be invisible, so `App.addPanel` then calls
 `workspace.reveal($panel)`, which shows every tab on the way up to it.
 
+### 19.1 Per-document collections
+
+*Agreed 2026-10-09.* A role says what kind of panel something is; it does not
+say which model it is about. With two models open, "another plot" means a plot
+in the Displays *of the current model*, not of whichever comes first. Nor is
+there one right arrangement of several models — kept apart as Simile does, or
+mixed so one graph compares a variable across two — and since modes switch
+mid-session, what a layout settles is only where things start.
+
+Simile's default, then, gives **each model two collections**: one for the
+model (its diagram, and in time its equations or an overview) and one for its
+simulation (run control and tabbed displays). They are separate because a
+modeller often compares two structures, and separately two runs:
+
+```
+workspace                 tiled, side by side
+├─ Models                 container, tabbed — template: one model's collection
+│  ├─ growth              container, ref models/growth   accepts diagram, …
+│  └─ drain               container, ref models/drain
+└─ Simulations            container, tabbed — template: one model's simulation
+   ├─ growth              container, ref models/growth, tiled, accepts run-control
+   │  ├─ Run control
+   │  └─ Displays         container, tabbed, accepts display
+   └─ drain               …
+```
+
+Tiling Models compares two structures, tiling Simulations two runs, and a
+model's two collections share its colour because colour follows `ref`. (Robert's
+first thought was four floating collections at the top level; that is the
+same mechanism with the templates on the top-level workspace, so either is just
+a layout.)
+
+The mechanism:
+
+- **A container can belong to a document** — it is a panel, so its `ref`. What
+  it belongs to is inherited by containers inside it.
+- **Routing takes the document into account.** A new panel goes to a container
+  that accepts its role and belongs to the panel's own `ref` — which the app
+  sets from the current document when it makes, say, a new plot. Failing that,
+  to one that accepts the role and belongs to no document. A container
+  belonging to another document is never entered.
+- **Templates.** A workspace may hold `templates`: configs, in serialize shape,
+  for one document's collection. When a panel with a `ref` finds no container,
+  the first template that would accept its role (itself or anything inside it)
+  is instantiated for that document, stamped with its `ref` throughout, and the
+  panel routed into it. So a model's first diagram makes its Model collection,
+  and its first run or plot its Simulation collection.
+- **A collection made from a template closes when it is emptied** — when no
+  panel but containers is left anywhere inside it. sienna has no "close
+  document" command: a document whose panels are all closed is closed as far
+  as the workspace can tell, so its collections go with it. A container the
+  layout itself put there stays, empty or not (§17).
+
+"Document" is sienna's word, as in `documents.js`; Simile says "model" and
+webAKT "knowledge base".
+
+**Consequence for simile (step 5):** its Run control follows the current model.
+In a Simulation collection it belongs to that collection's model instead, by
+`ref`.
+
 ## 20. Layouts
 
 A layout is **`workspace.serialize()`-shaped data**: an array of panels, where a
@@ -413,6 +473,7 @@ Each step tried in `examples/demo/` before the next:
 2. tiled and tabbed modes, including the tab-shown announcement — *done
    2026-10-09*;
 3. placement by role — *done 2026-10-09*;
+3a. per-document collections (§19.1) — *done 2026-10-09*;
 4. built-in layouts registered by the app, applied when there is no session;
 5. Simile's layout — in the simile repo, not here.
 

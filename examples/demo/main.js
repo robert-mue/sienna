@@ -59,6 +59,7 @@
       title: e.payload.title,
       widget: e.payload.widget || undefined,
       ref: e.payload.ref || '',
+      options: e.payload.options || undefined,
     });
   });
   Sienna.actions.onReplay('panel.close', function (e) {

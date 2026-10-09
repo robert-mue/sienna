@@ -42,6 +42,13 @@ $.widget('sienna.container', {
     active: null,
     /** Roles of panel this container takes in — see `workspace.workspaceFor`. */
     accepts: [],
+    /** Templates for per-document collections — see `workspace.templateFor`. */
+    templates: [],
+    /**
+     * Made from a template for one document (DESIGN.md §19.1): then it closes
+     * itself once nothing but containers is left inside it.
+     */
+    fromTemplate: false,
   },
 
   _create() {
@@ -59,6 +66,10 @@ $.widget('sienna.container', {
       direction: this.options.direction,
       active: this.options.active,
       accepts: this.options.accepts,
+      templates: this.options.templates,
+      // A close anywhere inside may have emptied a per-document collection —
+      // this one, or one further out.
+      onClose: () => this._afterClose(outer),
       // Through the outer workspace's own `_emitChange`, not straight to its
       // callback, so a change made while the outer one is restoring is
       // suppressed with everything else it suppresses.
@@ -101,6 +112,26 @@ $.widget('sienna.container', {
     this._ws.workspace('option', 'mode', mode);
   },
 
+  /** Is there a panel inside, at any depth, that is not a container? */
+  _hasLeaf() {
+    return this._ws.find('.slx-panel').toArray()
+      .some((el) => !$(el).children('.slx-panel-content').hasClass('slx-container'));
+  },
+
+  _afterClose(outer) {
+    const $panel = this.element.closest('.slx-panel');
+    // Not now: this runs inside the closing panel's own close, while it is
+    // still in the page. Once that is done, look again.
+    Promise.resolve().then(() => {
+      if (!$panel.length || !$panel[0].isConnected) return;
+      if (this.options.fromTemplate && !this._hasLeaf()) {
+        $panel.panel('close');
+      } else if (outer && typeof outer.options.onClose === 'function') {
+        outer.options.onClose();
+      }
+    });
+  },
+
   /** Set the roles of panel this container takes in. */
   accepts(roles) {
     this._ws.workspace('option', 'accepts', (roles || []).slice());
@@ -108,7 +139,11 @@ $.widget('sienna.container', {
   },
 
   state() {
-    return { ...this._ws.workspace('arrangement'), children: this._ws.workspace('serialize') };
+    return {
+      ...this._ws.workspace('arrangement'),
+      fromTemplate: this.options.fromTemplate,
+      children: this._ws.workspace('serialize'),
+    };
   },
 
   _destroy() {

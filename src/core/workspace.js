@@ -51,6 +51,14 @@ $.widget('sienna.workspace', {
      * whose widget registered one of these opens here. See `workspaceFor`.
      */
     accepts: [],
+    /**
+     * Configs (serialize shape) for one document's collection, instantiated by
+     * `App.addPanel` the first time a panel of that document needs one — see
+     * `templateFor` and DESIGN.md §19.1.
+     */
+    templates: [],
+    /** Called after a panel here closes by itself (not while clearing). */
+    onClose: null,
   },
 
   _create() {
@@ -207,6 +215,9 @@ $.widget('sienna.workspace', {
         }
         this._forget($panel);
         this._arrange();
+        if (!this._clearing && typeof this.options.onClose === 'function') {
+          this.options.onClose();
+        }
         this._dispatch('panel.close', panelId, {});
         this._emitChange();
       },
@@ -277,6 +288,10 @@ $.widget('sienna.workspace', {
       widget: widget || null,
       ref: ref,
       title: title,
+      // What it was opened with: a container made from a template or a layout
+      // carries its arrangement and first children here, and replay needs them
+      // to rebuild it as it was.
+      options: JSON.parse(JSON.stringify(options)),
     });
     this._emitChange();
     return $panel;
@@ -381,26 +396,76 @@ $.widget('sienna.workspace', {
       direction: this.options.direction,
       active: this._active,
       accepts: (this.options.accepts || []).slice(),
+      templates: JSON.parse(JSON.stringify(this.options.templates || [])),
     };
   },
 
   /**
-   * The workspace a new panel of this role belongs in: the first one nested
-   * in this, depth first in panel order, whose `accepts` names it — or null.
+   * The workspace a new panel of this role, about this document, belongs in —
+   * or null. Searched depth first in panel order, among the workspaces nested
+   * in this one:
+   *   - one that accepts the role and BELONGS to the document wins (a
+   *     container belongs to its panel's `ref`, or to what the container
+   *     around it belongs to);
+   *   - failing that, the first that accepts the role and belongs to none;
+   *   - one belonging to ANOTHER document is never entered.
    * Layouts name roles, never widgets, so a new kind of plot lands among the
    * displays without anyone touching the layout.
    * @param {?string} role
+   * @param {string} [ref] the document the new panel views
    * @returns {?JQuery} the nested workspace element
    */
-  workspaceFor(role) {
+  workspaceFor(role, ref) {
     if (!role) return null;
+    const found = this._findFor(role, ref || '', '');
+    return found.owned || found.free;
+  },
+
+  _findFor(role, ref, inherited) {
+    let free = null;
     for (const e of this._live()) {
       const $nested = this._nestedOf(e.$panel);
       if (!$nested) continue;
+      const subject = e.$panel.panel('ref') || inherited;
+      if (subject && subject !== ref) continue;
       const accepts = $nested.workspace('option', 'accepts') || [];
-      if (accepts.indexOf(role) >= 0) return $nested;
-      const $deeper = $nested.workspace('workspaceFor', role);
-      if ($deeper) return $deeper;
+      if (accepts.indexOf(role) >= 0) {
+        if (subject) return { owned: $nested, free: null };
+        if (!free) free = $nested;
+      }
+      const deeper = $nested.workspace('instance')._findFor(role, ref, subject);
+      if (deeper.owned) return deeper;
+      if (!free) free = deeper.free;
+    }
+    return { owned: null, free };
+  },
+
+  /**
+   * Where a collection for this document could be MADE so that a panel of
+   * this role has somewhere to go: the first workspace, this one or one nested
+   * in it (never one belonging to another document), holding a template that
+   * accepts the role itself or has something inside that does.
+   * @returns {?{$ws: JQuery, template: object}}
+   */
+  templateFor(role, ref) {
+    if (!role) return null;
+    return this._templateFor(role, ref || '', '');
+  },
+
+  _templateFor(role, ref, inherited) {
+    const takes = (t) => {
+      const o = (t && t.options) || {};
+      return (o.accepts || []).indexOf(role) >= 0 || (o.children || []).some(takes);
+    };
+    const own = (this.options.templates || []).find(takes);
+    if (own) return { $ws: this.element, template: own };
+    for (const e of this._live()) {
+      const $nested = this._nestedOf(e.$panel);
+      if (!$nested) continue;
+      const subject = e.$panel.panel('ref') || inherited;
+      if (subject && subject !== ref) continue;
+      const found = $nested.workspace('instance')._templateFor(role, ref, subject);
+      if (found) return found;
     }
     return null;
   },
