@@ -110,13 +110,20 @@
         target = Promise.resolve($ws);
       } else if (plan) {
         // This document has no collection here yet: make one from the template,
-        // then look again — it now holds a place for the panel (§19.1).
+        // then look again — it now holds a place for the panel (§19.1). Unless
+        // the collection came WITH the panel asked for, as a Simulation comes
+        // with its run control: then that one is the answer, not a second.
         target = plan.$ws.workspace('addPanel', this._fromTemplate(plan.template, ref))
-          .then(function () { return top.workspace('workspaceFor', role, ref) || top; });
+          .then(function ($made) {
+            var given = config.widget && self._panelsIn($made).find(function ($p) {
+              return self.widgetOf($p) === config.widget;
+            });
+            return given ? { given: given } : top.workspace('workspaceFor', role, ref) || top;
+          });
       }
     }
-    return target.then(function ($ws) {
-      return $ws.workspace('addPanel', config);
+    return target.then(function (t) {
+      return t.given || t.workspace('addPanel', config);
     }).then(function ($panel) {
       // Opened into a container in a tab not showing, it would be invisible.
       top.workspace('reveal', $panel);
@@ -160,16 +167,24 @@
    *   new panel after its neighbours, wherever they sit.
    */
   App.prototype.panels = function () {
-    var out = [];
-    (function walk($ws) {
-      $ws.workspace('panels').forEach(function ($p) {
-        out.push($p);
-        var $nested = $p.panel('content').children('.slx-workspace');
-        if ($nested.length) walk($nested);
-      });
-    })(this.$workspace);
-    return out;
+    return walkPanels(this.$workspace);
   };
+
+  /** Every panel inside a container panel, at any depth. */
+  App.prototype._panelsIn = function ($panel) {
+    var $nested = $panel.panel('content').children('.slx-workspace');
+    return $nested.length ? walkPanels($nested) : [];
+  };
+
+  function walkPanels($ws) {
+    var out = [];
+    $ws.workspace('panels').forEach(function ($p) {
+      out.push($p);
+      var $nested = $p.panel('content').children('.slx-workspace');
+      if ($nested.length) out = out.concat(walkPanels($nested));
+    });
+    return out;
+  }
 
   /** @returns {?string} the widget name a panel is hosting, or null — at any depth. */
   App.prototype.widgetOf = function ($panel) {

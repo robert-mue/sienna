@@ -426,6 +426,11 @@ The mechanism:
   is instantiated for that document, stamped with its `ref` throughout, and the
   panel routed into it. So a model's first diagram makes its Model collection,
   and its first run or plot its Simulation collection.
+- **A template may bring panels of its own** — a Simulation comes with its
+  run control, so the transport sits above the displays rather than wherever
+  it happened to arrive. When the collection made for a request already holds
+  a panel of the widget asked for, that panel IS the answer and no second one
+  is opened.
 - **A collection made from a template closes when it is emptied** — when no
   panel but containers is left anywhere inside it. sienna has no "close
   document" command: a document whose panels are all closed is closed as far
