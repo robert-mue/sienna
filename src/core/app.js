@@ -123,6 +123,8 @@
       }
     }
     return target.then(function (t) {
+      // The panel the template supplied takes the title asked for.
+      if (t.given && config.title) t.given.panel('title', config.title);
       return t.given || t.workspace('addPanel', config);
     }).then(function ($panel) {
       // Opened into a container in a tab not showing, it would be invisible.
