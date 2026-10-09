@@ -15,10 +15,11 @@
   var app = new Sienna.App('#app');
   var models = Sienna.models;
 
-  // STOPGAP until placement by role (DESIGN.md §19): the Widgets menu adds to
-  // the container last clicked — clicking a container, or any panel inside
-  // one, picks it; clicking a top-level panel or the bare workspace picks the
-  // top level. Capture phase, so nothing inside can swallow the click first.
+  // STOPGAP until layouts (DESIGN.md §20): View ▸ Arrange container and
+  // View ▸ Container accepts act on the container last clicked — clicking a
+  // container, or any panel inside one, picks it; clicking a top-level panel
+  // or the bare workspace picks none. Capture phase, so nothing inside can
+  // swallow the click first.
   var $target = null;
   app.$workspace[0].addEventListener('mousedown', function (e) {
     var $p = $(e.target).closest('.slx-panel');
@@ -27,19 +28,13 @@
     $target = $c.length ? $c : null;
   }, true);
 
-  function addWidgetPanel(config) {
-    if ($target && $target[0].isConnected) {
-      return $target.container('workspace').workspace('addPanel', config);
-    }
-    return app.addPanel(config);
-  }
-
   // One Widgets entry per registered widget, in registration order.
   var widgetItems = Sienna.widgetRegistry.list().map(function (w) {
     return {
       label: w.label,
       onSelect: function () {
-        addWidgetPanel({ title: w.title, widget: w.name, options: w.options });
+        // Into the container that accepts the widget's role, if any.
+        app.addPanel({ title: w.title, widget: w.name, options: w.options });
       },
     };
   });
@@ -196,6 +191,27 @@
                 label: m[0],
                 onSelect: function () {
                   if ($target && $target[0].isConnected) $target.container('mode', m[1], m[2]);
+                },
+              };
+            }),
+          },
+          {
+            label: 'Container accepts',
+            items: ['model', 'note', 'tool'].map(function (role) {
+              return {
+                label: 'Toggle ' + role,
+                onSelect: function () {
+                  if (!$target || !$target[0].isConnected) return;
+                  var now = $target.container('workspace').workspace('option', 'accepts') || [];
+                  var next = now.indexOf(role) >= 0
+                    ? now.filter(function (r) { return r !== role; })
+                    : now.concat([role]);
+                  // Say so in the title, since nothing else shows it — before
+                  // the change below, which is what gets the title saved.
+                  var $p = $target.closest('.slx-panel');
+                  var base = $p.panel('title').replace(/ \[.*\]$/, '');
+                  $p.panel('title', next.length ? base + ' [' + next.join(', ') + ']' : base);
+                  $target.container('accepts', next);
                 },
               };
             }),

@@ -46,6 +46,11 @@ $.widget('sienna.workspace', {
     direction: 'row',
     /** For 'tabbed': the id of the panel showing. */
     active: null,
+    /**
+     * The roles of panel this workspace takes in (a container's): a new panel
+     * whose widget registered one of these opens here. See `workspaceFor`.
+     */
+    accepts: [],
   },
 
   _create() {
@@ -369,9 +374,53 @@ $.widget('sienna.workspace', {
     this._arrange();
   },
 
-  /** @returns {{mode:string, direction:string, active:?string}} for saving */
+  /** @returns {{mode:string, direction:string, active:?string, accepts:string[]}} for saving */
   arrangement() {
-    return { mode: this.options.mode, direction: this.options.direction, active: this._active };
+    return {
+      mode: this.options.mode,
+      direction: this.options.direction,
+      active: this._active,
+      accepts: (this.options.accepts || []).slice(),
+    };
+  },
+
+  /**
+   * The workspace a new panel of this role belongs in: the first one nested
+   * in this, depth first in panel order, whose `accepts` names it — or null.
+   * Layouts name roles, never widgets, so a new kind of plot lands among the
+   * displays without anyone touching the layout.
+   * @param {?string} role
+   * @returns {?JQuery} the nested workspace element
+   */
+  workspaceFor(role) {
+    if (!role) return null;
+    for (const e of this._live()) {
+      const $nested = this._nestedOf(e.$panel);
+      if (!$nested) continue;
+      const accepts = $nested.workspace('option', 'accepts') || [];
+      if (accepts.indexOf(role) >= 0) return $nested;
+      const $deeper = $nested.workspace('workspaceFor', role);
+      if ($deeper) return $deeper;
+    }
+    return null;
+  },
+
+  /**
+   * Make sure a panel, wherever it sits, can be seen: every tabbed workspace
+   * on the way up from it shows the tab that leads to it.
+   */
+  reveal($panel) {
+    let $p = $panel;
+    while ($p && $p.length) {
+      const $ws = $p.parent();
+      const inst = $ws.workspace('instance');
+      if (!inst) break;
+      if (inst.options.mode === 'tabbed' && inst._active !== $p.panel('id')) {
+        inst.activate($p.panel('id'));
+      }
+      if (inst === this) break;
+      $p = $ws.closest('.slx-panel');
+    }
   },
 
   /** Show one of this workspace's panels — its tab, when tabbed. */

@@ -17,30 +17,36 @@
   'use strict';
   var reg = Sienna.widgetRegistry;
 
+  // `role` decides which container a widget opens in (DESIGN.md §19).
   reg.register('clock', {
     src: 'widgets/clock.js',
     label: 'Clock',
     title: 'Clock',
+    role: 'tool',
   });
   reg.register('hello', {
     src: 'widgets/hello.js',
     label: 'Greeting',
     title: 'Greeting',
     options: { name: 'sienna' },
+    role: 'tool',
   });
   reg.register('counter', {
     src: 'widgets/counter.js',
     label: 'Counter',
     title: 'Counter',
+    role: 'model',
   });
   reg.register('notepad', {
     src: 'widgets/notepad.js',
     label: 'Notepad',
     title: 'Notepad',
+    role: 'note',
   });
   reg.register('colorpicker', {
     src: 'widgets/colorpicker.js',
     label: 'Colour picker',
     title: 'Colour',
+    role: 'tool',
   });
 })(window.Sienna);

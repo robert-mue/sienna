@@ -89,9 +89,26 @@
     return this;
   };
 
-  /** Open a panel hosting a dynamically loaded widget. */
+  /**
+   * Open a panel hosting a dynamically loaded widget — in the container that
+   * accepts its role, if there is one (DESIGN.md §19), else at the top level.
+   * A config naming an `id` already says where it goes (replay), and a
+   * `role` in the config overrides the widget's own.
+   */
   App.prototype.addPanel = function (config) {
-    return this.$workspace.workspace('addPanel', config);
+    config = config || {};
+    var $ws = this.$workspace;
+    if (!config.id) {
+      var spec = config.widget && Sienna.widgetRegistry.spec(config.widget);
+      var role = config.role || (spec && spec.role);
+      $ws = $ws.workspace('workspaceFor', role) || $ws;
+    }
+    var self = this;
+    return $ws.workspace('addPanel', config).then(function ($panel) {
+      // Opened into a container in a tab not showing, it would be invisible.
+      self.$workspace.workspace('reveal', $panel);
+      return $panel;
+    });
   };
 
   /** Save the workspace now. Needed after changing panels outside the widgets. */

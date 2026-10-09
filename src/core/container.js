@@ -40,6 +40,8 @@ $.widget('sienna.container', {
     mode: 'floating',
     direction: 'row',
     active: null,
+    /** Roles of panel this container takes in — see `workspace.workspaceFor`. */
+    accepts: [],
   },
 
   _create() {
@@ -56,6 +58,7 @@ $.widget('sienna.container', {
       mode: this.options.mode,
       direction: this.options.direction,
       active: this.options.active,
+      accepts: this.options.accepts,
       // Through the outer workspace's own `_emitChange`, not straight to its
       // callback, so a change made while the outer one is restoring is
       // suppressed with everything else it suppresses.
@@ -96,6 +99,12 @@ $.widget('sienna.container', {
   mode(mode, direction) {
     if (direction) this._ws.workspace('option', 'direction', direction);
     this._ws.workspace('option', 'mode', mode);
+  },
+
+  /** Set the roles of panel this container takes in. */
+  accepts(roles) {
+    this._ws.workspace('option', 'accepts', (roles || []).slice());
+    this._ws.workspace('instance')._emitChange();
   },
 
   state() {

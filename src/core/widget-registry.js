@@ -30,6 +30,9 @@
      *     (default true). A widget that IS its controls — a transport, a row of
      *     buttons — has nothing left when the controls go, and should say so.
      *   workingSize — the size "open to a working size" opens it at
+     *   role — what kind of panel this is ('display', 'diagram', …), which
+     *     decides the container it opens in: the first whose `accepts` names
+     *     it. No role, or no container accepting it, means the top level.
      */
     register: function (name, spec) {
       spec = spec || {};
@@ -43,6 +46,7 @@
         options: spec.options || {},
         thumbnail: spec.thumbnail !== false,
         workingSize: spec.workingSize || null,
+        role: spec.role || null,
         method: null,
         promise: null,
       };
@@ -76,7 +80,7 @@
       if (!e) return null;
       return {
         name: name, label: e.label, title: e.title, options: e.options,
-        thumbnail: e.thumbnail, workingSize: e.workingSize,
+        thumbnail: e.thumbnail, workingSize: e.workingSize, role: e.role,
       };
     },
 

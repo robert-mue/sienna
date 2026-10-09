@@ -371,6 +371,14 @@ in. So:
 Layouts name roles, never widgets, so a new kind of plot lands in Displays
 without anyone touching the layout.
 
+As built: `accepts` is an option of the nested WORKSPACE (the container passes
+it through and saves it with its arrangement), and `workspace.workspaceFor(role)`
+does the search, so the routing is the workspace's own business. A `role` in
+the config overrides the widget's, and a config naming an `id` (replay) goes
+where the id says. A panel opened into a container sitting in a tab that is
+not showing would be invisible, so `App.addPanel` then calls
+`workspace.reveal($panel)`, which shows every tab on the way up to it.
+
 ## 20. Layouts
 
 A layout is **`workspace.serialize()`-shaped data**: an array of panels, where a
@@ -404,7 +412,7 @@ Each step tried in `examples/demo/` before the next:
    save/restore, replay by path — *done 2026-10-08*;
 2. tiled and tabbed modes, including the tab-shown announcement — *done
    2026-10-09*;
-3. placement by role;
+3. placement by role — *done 2026-10-09*;
 4. built-in layouts registered by the app, applied when there is no session;
 5. Simile's layout — in the simile repo, not here.
 
