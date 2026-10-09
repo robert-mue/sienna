@@ -147,8 +147,20 @@ $.widget('sienna.panel', {
       this.element.addClass('slx-panel--draggable').draggable({
         handle: '.slx-panel-titlebar',
         cancel: '.slx-panel-controls',
-        containment: 'parent',
         stack: '.slx-panel',
+        // Kept inside the workspace here rather than by `containment:
+        // 'parent'`, which for a panel bigger than its workspace allows only
+        // NEGATIVE positions: the first nudge snapped a tall diagram upwards by
+        // the excess and put its titlebar out of reach. A panel that fits stays
+        // wholly inside; one that does not is held at the top-left edge, where
+        // its titlebar can always be reached.
+        drag: (e, ui) => {
+          const $ws = this.element.parent();
+          const maxLeft = Math.max(0, $ws.innerWidth() - this.element.outerWidth());
+          const maxTop = Math.max(0, $ws.innerHeight() - this.element.outerHeight());
+          ui.position.left = Math.min(Math.max(0, ui.position.left), maxLeft);
+          ui.position.top = Math.min(Math.max(0, ui.position.top), maxTop);
+        },
         stop: () => {
           if (!this._maximized) {
             this._geom.left = parseFloat(this.element.css('left')) || 0;
