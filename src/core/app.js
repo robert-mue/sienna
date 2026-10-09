@@ -154,14 +154,27 @@
     return this;
   };
 
-  /** @returns {JQuery[]} the open panels — an app needs these to name a new one. */
+  /**
+   * @returns {JQuery[]} every open panel at any depth — containers and what is
+   *   inside them, depth first in workspace order. An app needs these to name a
+   *   new panel after its neighbours, wherever they sit.
+   */
   App.prototype.panels = function () {
-    return this.$workspace.workspace('panels');
+    var out = [];
+    (function walk($ws) {
+      $ws.workspace('panels').forEach(function ($p) {
+        out.push($p);
+        var $nested = $p.panel('content').children('.slx-workspace');
+        if ($nested.length) walk($nested);
+      });
+    })(this.$workspace);
+    return out;
   };
 
-  /** @returns {?string} the widget name a panel is hosting, or null. */
+  /** @returns {?string} the widget name a panel is hosting, or null — at any depth. */
   App.prototype.widgetOf = function ($panel) {
-    return this.$workspace.workspace('widgetOf', $panel);
+    var $ws = $panel.parent();
+    return $ws.workspace('instance') ? $ws.workspace('widgetOf', $panel) : null;
   };
 
   /** Remove every open panel (also clears the persisted state). */
