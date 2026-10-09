@@ -447,6 +447,22 @@ container carries its mode and its own children. An app registers its
 default is applied when there is no saved session. Containers in a layout are
 empty; the user's panels arrive by role.
 
+As built (`src/core/layouts.js`): `Sienna.layouts.register(name, { label,
+default, mode, direction, accepts, templates, panels })` — the top level's own
+arrangement beside its panels, since the top level is a workspace like any
+other. `App.applyLayout(name)` clears the workspace, sets that arrangement,
+restores the panels, and then **opens again every panel that was showing
+something** (not the containers that held them), so each lands where its role
+and document now say — switching layouts re-sorts the work rather than losing
+it. It is one logged action, `layout.apply`; replay re-applies it with
+`keepPanels: false`, since the re-opened panels were logged in their own right.
+`Sienna.layouts.menuItems(app)` lists the layouts for whatever menu an app puts
+them in.
+
+The saved session now carries the top level's arrangement too:
+`{ arrangement, panels }` instead of the bare panel array, which
+`persistence.load` and `App.restore` still accept from older saves.
+
 ## 21. Plumbing the sketches missed
 
 - **Nested ids.** A nested workspace mints ids under its container's
@@ -474,7 +490,8 @@ Each step tried in `examples/demo/` before the next:
    2026-10-09*;
 3. placement by role — *done 2026-10-09*;
 3a. per-document collections (§19.1) — *done 2026-10-09*;
-4. built-in layouts registered by the app, applied when there is no session;
+4. built-in layouts registered by the app, applied when there is no session —
+   *done 2026-10-09*;
 5. Simile's layout — in the simile repo, not here.
 
 ## 23. Cut, deliberately

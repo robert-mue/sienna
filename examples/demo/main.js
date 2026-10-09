@@ -33,8 +33,9 @@
     return {
       label: w.label,
       onSelect: function () {
-        // Into the container that accepts the widget's role, if any.
-        app.addPanel({ title: w.title, widget: w.name, options: w.options });
+        // For the current model, if there is one, and into the container that
+        // accepts the widget's role — the current model's, if it has one.
+        app.addPanel({ title: w.title, widget: w.name, options: w.options, ref: models.current() || '' });
       },
     };
   });
@@ -85,6 +86,11 @@
   Sienna.actions.onReplay('panel.share', function (e) {
     var $p = byId(e.target);
     if ($p) $p.parent().workspace('share', e.target, e.payload.share);
+  });
+  Sienna.actions.onReplay('layout.apply', function (e) {
+    // The panels re-opened into the layout were logged after this, each in its
+    // own right, so replay must not open them a second time.
+    return app.applyLayout(e.payload.name, { keepPanels: false });
   });
   Sienna.actions.onReplay('panel.activate', function (e) {
     var $p = byId(e.target);
@@ -180,6 +186,7 @@
         items: [
           // STOPGAP, with the one in the Widgets menu: arrange the container
           // last clicked. Layouts will set modes (DESIGN.md §20).
+          { label: 'Layout', items: Sienna.layouts.menuItems(app) },
           {
             label: 'Arrange container',
             items: [

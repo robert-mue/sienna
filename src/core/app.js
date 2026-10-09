@@ -141,12 +141,10 @@
     return copy;
   };
 
-  /** A document's name, for titles: its own if it has one, else its id. */
+  /** A document's name, for titles: its own `name` if it has one, else its id. */
   App.prototype._docName = function (ref) {
-    if (hasDocuments()) {
-      var doc = Sienna.documents.list().find(function (d) { return d.path === ref; });
-      if (doc) return doc.name;
-    }
+    var doc = Sienna.userData && Sienna.userData.get(ref);
+    if (doc && doc.name) return doc.name;
     return String(ref).split('/').pop();
   };
 
@@ -173,21 +171,92 @@
   };
 
   /**
-   * Restore the workspace from localStorage, if anything was saved.
-   * @returns {Promise<boolean>} whether panels were restored
+   * Restore the workspace from localStorage, if anything was saved; if not,
+   * lay it out with the app's default layout, if it has one.
+   * @returns {Promise<boolean>} whether a saved session was restored
    */
   App.prototype.restore = function () {
     var state = Sienna.persistence.load();
-    if (state && state.length) {
-      return this.$workspace.workspace('restore', state).then(function () {
+    // Older sessions saved the bare panel array; newer ones the top level's
+    // arrangement beside it.
+    var panels = Array.isArray(state) ? state : (state && state.panels) || [];
+    var arrangement = state && !Array.isArray(state) ? state.arrangement : null;
+    if (panels.length || arrangement) {
+      if (arrangement) this._arrange(arrangement);
+      return this.$workspace.workspace('restore', panels).then(function () {
         return true;
+      });
+    }
+    var dflt = Sienna.layouts && Sienna.layouts.defaultName();
+    if (dflt) {
+      return this.applyLayout(dflt, { keepPanels: false }).then(function () {
+        return false;
       });
     }
     return Promise.resolve(false);
   };
 
+  /** Set the top level's own arrangement — mode, direction, accepts, templates. */
+  App.prototype._arrange = function (a) {
+    this.$workspace.workspace('option', {
+      mode: a.mode || 'floating',
+      direction: a.direction || 'row',
+      active: a.active || null,
+      accepts: a.accepts || [],
+      templates: a.templates || [],
+    });
+  };
+
+  /**
+   * Lay the workspace out afresh with one of the app's layouts (DESIGN.md
+   * §20). The panels that were open are opened again into it — the ones that
+   * show something, not the containers that held them — so each lands where
+   * its role and document now say. One logged action, `layout.apply`; replay
+   * re-applies it with `keepPanels: false`, since the panels opened again
+   * afterwards were logged in their own right.
+   * @param {string} name
+   * @param {{ keepPanels?: boolean }} [opts]
+   * @returns {Promise<void>}
+   */
+  App.prototype.applyLayout = function (name, opts) {
+    var layout = Sienna.layouts && Sienna.layouts.get(name);
+    if (!layout) return Promise.reject(new Error('Unknown layout: "' + name + '"'));
+    var keep = opts && opts.keepPanels === false ? [] : this._leafConfigs();
+    var self = this;
+    if (Sienna.actions) {
+      Sienna.actions.dispatch({ type: 'layout.apply', target: null, payload: { name: name } });
+    }
+    this.$workspace.workspace('clear');
+    this._arrange(layout);
+    return this.$workspace.workspace('restore', layout.panels || []).then(function () {
+      return keep.reduce(function (p, config) {
+        return p.then(function () { return self.addPanel(config); });
+      }, Promise.resolve());
+    }).then(function () {
+      self._persist();
+    });
+  };
+
+  /** Every open panel that is not a container, as a config to open it again. */
+  App.prototype._leafConfigs = function () {
+    var out = [];
+    (function walk(list) {
+      list.forEach(function (item) {
+        if (item.widget === 'container') {
+          walk((item.options && item.options.children) || []);
+        } else {
+          out.push({ widget: item.widget, title: item.title, ref: item.ref, options: item.options });
+        }
+      });
+    })(this.$workspace.workspace('serialize'));
+    return out;
+  };
+
   App.prototype._persist = function () {
-    Sienna.persistence.save(this.$workspace.workspace('serialize'));
+    Sienna.persistence.save({
+      arrangement: this.$workspace.workspace('arrangement'),
+      panels: this.$workspace.workspace('serialize'),
+    });
   };
 
   Sienna.App = App;

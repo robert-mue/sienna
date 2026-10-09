@@ -60,7 +60,10 @@
           this.writeJSON(KEY, legacy);
         }
       }
-      return Array.isArray(parsed) ? parsed : null;
+      // Either the bare panel array older sessions saved, or the object `App`
+      // saves now, which carries the top level's own arrangement beside it.
+      if (Array.isArray(parsed)) return parsed;
+      return parsed && Array.isArray(parsed.panels) ? parsed : null;
     },
 
     clear: function () {
