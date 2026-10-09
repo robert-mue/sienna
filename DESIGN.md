@@ -341,6 +341,15 @@ at every level, the top one included:
 A child keeps its floating geometry while tiled or tabbed, so that a later
 switch back to floating can restore it.
 
+As built: the workspace PLACES a tiled or tabbed child (`panel('place',
+rect)`), which positions it and turns off dragging and resizing by hand, and
+`place(null)` hands it back. Side by side, a minimised child is a narrow strip
+with its buttons at the top and its title running down. A tab is the child's
+titlebar — title, a stripe of subject colour, close — so the child's own is
+hidden. Shares and tab choices are logged (`panel.share`, `panel.activate`)
+like any other layout action, and saved with the container (`mode`,
+`direction`, `active`, and each child's `share`).
+
 **Hidden tabs are the trap.** A child in a hidden tab has no size and gets no
 resize notice — the same blindness as a hidden browser tab (simile's
 RESTART.md). Showing a tab must announce it, `slxpanelresize` as a resize
@@ -392,8 +401,9 @@ empty; the user's panels arrive by role.
 Each step tried in `examples/demo/` before the next:
 
 1. container widget, nested ids, change/raise propagation, recursive
-   save/restore, replay by path;
-2. tiled and tabbed modes, including the tab-shown announcement;
+   save/restore, replay by path — *done 2026-10-08*;
+2. tiled and tabbed modes, including the tab-shown announcement — *done
+   2026-10-09*;
 3. placement by role;
 4. built-in layouts registered by the app, applied when there is no session;
 5. Simile's layout — in the simile repo, not here.
@@ -406,7 +416,9 @@ each later.
 1. **User-made layouts** — "save current arrangement as", rename, delete.
    Cheap when wanted: a saved layout is just `serialize()` with refs stripped.
 2. **Layout files and a shared gallery** — export/import, remote layout scripts.
-3. **Switching mode at runtime** — modes are set by the layout for now.
+3. **A UI for switching mode at runtime** — modes are set by the layout. The
+   mechanism exists (`container('mode', …)`, the workspace's `mode` option) and
+   the demo's View ▸ Arrange container uses it as a stopgap.
 4. **`focusGroup`** (the Model/Simulation mode switch) — a tiled top level shows
    both at once, which is what Simile had.
 5. **Dragging a panel between containers** — role placement covers the need.

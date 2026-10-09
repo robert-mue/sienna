@@ -13,6 +13,7 @@
  *   $el.panel('geometry');             // -> { left, top, width, height }
  *   $el.panel('minimize');             // toggle; or ('minimize', true|false)
  *   $el.panel('maximize');             // toggle; or ('maximize', true|false)
+ *   $el.panel('place', rect | null);   // let the workspace position it, or not
  *
  * Classic script: uses the global jQuery (`$`) provided by the vendored
  * jquery.min.js + jquery-ui.js; no imports/exports.
@@ -197,6 +198,10 @@ $.widget('sienna.panel', {
    * content gets the whole box. Above it, everything comes back.
    */
   _measure() {
+    // A panel that is not displayed — one in a tab not showing — has no size,
+    // and judging it by that would make it a thumbnail. Nothing is measured or
+    // announced; whoever shows it again calls `place`, which measures then.
+    if (!this.element.is(':visible')) return;
     if (this.options.thumbnailable) {
       const w = this.element.outerWidth();
       const h = this.element.outerHeight();
@@ -209,7 +214,7 @@ $.widget('sienna.panel', {
       // becomes the size this panel opens back up to. This is the only way the
       // working size is ever learned: dragging a panel bigger is how a user
       // says how big they want it.
-      if (!thumb && !this._maximized && !this._minimized) {
+      if (!thumb && !this._maximized && !this._minimized && !this._placed) {
         this._workGeom = { width: w, height: h };
       }
 
@@ -398,11 +403,49 @@ $.widget('sienna.panel', {
       width: geom.width ?? this._geom.width,
       height: geom.height ?? this._geom.height,
     };
-    if (!this._maximized && !this._minimized) {
+    if (!this._maximized && !this._minimized && !this._placed) {
       this._applyGeometry(this._geom);
     }
     this._measure();
     return this;
+  },
+
+  /**
+   * Hand this panel's position to its workspace, or take it back.
+   *
+   * A tiled or tabbed workspace decides where each panel goes; `place(rect)`
+   * puts the panel there and turns off dragging and resizing by hand, and
+   * `place(null)` returns it to floating. The panel's own geometry is never
+   * touched while placed, so returning to floating restores it exactly — and
+   * it is still what `geometry()` reports and what is saved.
+   *
+   * Placing is also the moment a hidden panel is shown again, so it always
+   * measures: that is the announcement (`slxpanelresize`) a widget that draws
+   * to fit is waiting for.
+   *
+   * @param {?{left:number, top:number, width:number, height:number}} rect
+   */
+  place(rect) {
+    this._placed = rect ? { ...rect } : null;
+    this.element.toggleClass('slx-panel--placed', !!rect);
+    if (this._maximized) {
+      // Stays filling its workspace; the new place applies when it un-maximises.
+    } else if (rect) {
+      this._applyGeometry(rect);
+    } else {
+      this._applyGeometry(this._minimized
+        ? { ...this._geom, height: null } : this._geom);
+    }
+    this._setDraggableEnabled(!rect && !this._maximized);
+    this._setResizableEnabled(!rect && !this._maximized && !this._minimized);
+    this._measure();
+    this._updateButtons();
+    return this;
+  },
+
+  /** @returns {boolean} is a tiled or tabbed workspace positioning this panel? */
+  placed() {
+    return !!this._placed;
   },
 
   minimized() {
@@ -421,13 +464,16 @@ $.widget('sienna.panel', {
 
     this._minimized = on;
     this.element.toggleClass('slx-panel--minimized', on);
-    if (on) {
-      this.element.css('height', '');
-      this._setResizableEnabled(false);
-    } else {
-      this.element.css('height', this._geom.height ?? '');
-      this._setResizableEnabled(true);
+    // A placed panel's height is its workspace's business: it re-places the
+    // panel when it hears of the change.
+    if (!this._placed) {
+      if (on) {
+        this.element.css('height', '');
+      } else {
+        this.element.css('height', this._geom.height ?? '');
+      }
     }
+    this._setResizableEnabled(!on && !this._placed);
     this._measure();
     this._updateButtons();
     this._emitChange({ type: 'minimize', payload: { minimized: this._minimized } });
@@ -447,9 +493,9 @@ $.widget('sienna.panel', {
       this._setDraggableEnabled(false);
       this._setResizableEnabled(false);
     } else {
-      this._applyGeometry(this._geom);
-      this._setDraggableEnabled(true);
-      this._setResizableEnabled(true);
+      this._applyGeometry(this._placed || this._geom);
+      this._setDraggableEnabled(!this._placed);
+      this._setResizableEnabled(!this._placed);
     }
     this._measure();
     this._updateButtons();
@@ -507,7 +553,9 @@ $.widget('sienna.panel', {
       this._workBtn
         .attr('aria-label', label)
         .attr('title', label)
-        .toggleClass('slx-panel-shrink', shrink);
+        .toggleClass('slx-panel-shrink', shrink)
+        // Size is the workspace's while placed, so there is nothing to toggle.
+        .toggle(!this._placed);
     }
     if (this._maxBtn) {
       this._maxBtn

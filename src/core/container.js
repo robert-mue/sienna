@@ -36,6 +36,10 @@ $.widget('sienna.container', {
   options: {
     /** The children, in `workspace.serialize()` shape. */
     children: [],
+    /** How the children are arranged — the nested workspace's own options. */
+    mode: 'floating',
+    direction: 'row',
+    active: null,
   },
 
   _create() {
@@ -49,6 +53,9 @@ $.widget('sienna.container', {
 
     this._ws = $('<div>').appendTo(this.element).workspace({
       idPrefix: id ? id + '/' : '',
+      mode: this.options.mode,
+      direction: this.options.direction,
+      active: this.options.active,
       // Through the outer workspace's own `_emitChange`, not straight to its
       // callback, so a change made while the outer one is restoring is
       // suppressed with everything else it suppresses.
@@ -62,6 +69,18 @@ $.widget('sienna.container', {
       },
     });
 
+    // When this container's panel changes size — resized, maximised, or shown
+    // again in a tab — a tiled or tabbed arrangement inside must follow. The
+    // panel announces it; children's own announcements bubble through here
+    // too, and are not ours.
+    if ($panel.length) {
+      this._on($panel, {
+        slxpanelresize: (e) => {
+          if (e.target === $panel[0]) this._ws.workspace('arrange');
+        },
+      });
+    }
+
     const children = this.options.children || [];
     this.ready = children.length
       ? this._ws.workspace('restore', children)
@@ -73,8 +92,14 @@ $.widget('sienna.container', {
     return this._ws;
   },
 
+  /** Arrange the children differently: 'floating', 'tiled' or 'tabbed'. */
+  mode(mode, direction) {
+    if (direction) this._ws.workspace('option', 'direction', direction);
+    this._ws.workspace('option', 'mode', mode);
+  },
+
   state() {
-    return { children: this._ws.workspace('serialize') };
+    return { ...this._ws.workspace('arrangement'), children: this._ws.workspace('serialize') };
   },
 
   _destroy() {

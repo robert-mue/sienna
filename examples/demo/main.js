@@ -84,6 +84,16 @@
     var $p = byId(e.target);
     if ($p) $p.panel('maximize', !!e.payload.maximized);
   });
+  // A tiled panel's share and a tab being chosen belong to the workspace the
+  // panel sits in, which is its parent element.
+  Sienna.actions.onReplay('panel.share', function (e) {
+    var $p = byId(e.target);
+    if ($p) $p.parent().workspace('share', e.target, e.payload.share);
+  });
+  Sienna.actions.onReplay('panel.activate', function (e) {
+    var $p = byId(e.target);
+    if ($p) $p.parent().workspace('activate', e.target);
+  });
 
   // Replay the recorded session onto a clean slate (destroys current state).
   function replaySession() {
@@ -172,6 +182,24 @@
       {
         label: 'View',
         items: [
+          // STOPGAP, with the one in the Widgets menu: arrange the container
+          // last clicked. Layouts will set modes (DESIGN.md §20).
+          {
+            label: 'Arrange container',
+            items: [
+              ['Floating', 'floating'],
+              ['Tiled side by side', 'tiled', 'row'],
+              ['Tiled stacked', 'tiled', 'column'],
+              ['Tabbed', 'tabbed'],
+            ].map(function (m) {
+              return {
+                label: m[0],
+                onSelect: function () {
+                  if ($target && $target[0].isConnected) $target.container('mode', m[1], m[2]);
+                },
+              };
+            }),
+          },
           {
             label: 'Clear workspace',
             onSelect: function () {

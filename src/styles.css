@@ -134,6 +134,122 @@ body {
   background-size: 20px 20px;
 }
 
+/* Arranged workspaces. A placed panel is positioned by its workspace, so it
+   loses the floating look — corners, shadow, the move cursor, the resize
+   handles — and sits in its slot. */
+.slx-panel--placed {
+  border-radius: 0;
+  box-shadow: none;
+}
+.slx-panel--placed .slx-panel-titlebar {
+  cursor: default;
+}
+.slx-panel--placed > .ui-resizable-handle {
+  /* !important: jQuery UI sometimes writes display:block on a handle itself. */
+  display: none !important;
+}
+.slx-panel--hidden {
+  display: none !important;
+}
+
+/* Tiled side by side: a minimised panel is a narrow strip. Its buttons stack
+   at the top, where the restore button is easy to find, and the title runs
+   down the strip beneath them. */
+.slx-workspace--row > .slx-panel--minimized > .slx-panel-titlebar {
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 6px 4px;
+}
+.slx-workspace--row > .slx-panel--minimized .slx-panel-title {
+  writing-mode: vertical-rl;
+  flex: 0 1 auto;
+}
+.slx-workspace--row > .slx-panel--minimized .slx-panel-controls {
+  flex-direction: column;
+}
+
+.slx-divider {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+.slx-workspace--row > .slx-divider {
+  cursor: col-resize;
+}
+.slx-workspace--column > .slx-divider {
+  cursor: row-resize;
+}
+.slx-divider:hover:not(.slx-divider--inert) {
+  background: rgba(0, 0, 0, 0.12);
+}
+.slx-divider--inert {
+  cursor: default !important;
+}
+
+/* Tabbed: the tab is the titlebar, so the panel's own is hidden. */
+.slx-workspace--tabbed > .slx-panel {
+  border: 0;
+}
+.slx-workspace--tabbed > .slx-panel > .slx-panel-titlebar {
+  display: none;
+}
+.slx-tabs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  gap: 2px;
+  padding: 4px 4px 0;
+  overflow-x: auto;
+  background: #e6e8ee;
+  border-bottom: 1px solid var(--slx-border);
+}
+.slx-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid var(--slx-border);
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  background: #f4f5f8;
+  color: #555;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  /* Subject colour as a stripe, so tabs on one document look alike. */
+  box-shadow: inset 0 3px 0 var(--slx-tab-accent, var(--slx-titlebar-bg));
+}
+.slx-tab--active {
+  background: #fff;
+  color: #222;
+  font-weight: 600;
+}
+.slx-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slx-tab-close {
+  border: 0;
+  background: none;
+  padding: 0 2px;
+  font-size: 15px;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+}
+.slx-tab-close::before {
+  content: '\00d7';
+}
+.slx-tab-close:hover {
+  opacity: 1;
+}
+
 /* Panel ----------------------------------------------------------------- */
 .slx-panel {
   position: absolute;
