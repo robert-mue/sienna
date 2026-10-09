@@ -15,12 +15,31 @@
   var app = new Sienna.App('#app');
   var models = Sienna.models;
 
+  // STOPGAP until placement by role (DESIGN.md §19): the Widgets menu adds to
+  // the container last clicked — clicking a container, or any panel inside
+  // one, picks it; clicking a top-level panel or the bare workspace picks the
+  // top level. Capture phase, so nothing inside can swallow the click first.
+  var $target = null;
+  app.$workspace[0].addEventListener('mousedown', function (e) {
+    var $p = $(e.target).closest('.slx-panel');
+    var $c = $p.children('.slx-container');
+    if (!$c.length) $c = $p.closest('.slx-container');
+    $target = $c.length ? $c : null;
+  }, true);
+
+  function addWidgetPanel(config) {
+    if ($target && $target[0].isConnected) {
+      return $target.container('workspace').workspace('addPanel', config);
+    }
+    return app.addPanel(config);
+  }
+
   // One Widgets entry per registered widget, in registration order.
   var widgetItems = Sienna.widgetRegistry.list().map(function (w) {
     return {
       label: w.label,
       onSelect: function () {
-        app.addPanel({ title: w.title, widget: w.name, options: w.options });
+        addWidgetPanel({ title: w.title, widget: w.name, options: w.options });
       },
     };
   });
