@@ -53,7 +53,10 @@
       var parsed = this.readJSON(KEY);
       // Adopt a pre-namespacing session once, as userData does — otherwise the
       // first run after an app declares an id opens with an empty workspace.
-      if (!Array.isArray(parsed) && Sienna.appId) {
+      // Only when NOTHING is saved: a session is an object now, not an array,
+      // and testing for an array adopted the old one over every new save.
+      // Never for a new-user preview, which must start from nothing.
+      if (!parsed && Sienna.appId && !Sienna.newUser) {
         var legacy = this.readJSON(Sienna.legacyStorageKey('workspace.v1'));
         if (Array.isArray(legacy)) {
           parsed = legacy;

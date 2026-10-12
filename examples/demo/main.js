@@ -174,6 +174,8 @@
               Sienna.files.download('sienna-log.json', Sienna.actions.toJSON());
             },
           },
+          // A first-run view, in a new tab with a store of its own.
+          { label: 'Open as a new user (new tab)', onSelect: function () { Sienna.openAsNewUser(); } },
           {
             label: 'Import log',
             onSelect: function () {

@@ -23,6 +23,12 @@
  *   2. `?app=` in the query string (§18's switch, when one host serves several);
  *   3. nothing — in which case the legacy un-namespaced keys are used, so an
  *      app that has not declared itself keeps working and keeps its data.
+ *
+ * **New-user preview.** `?newuser` in the query string runs the app as someone
+ * opening it for the first time: under its own id (`<app>-newuser`), with that
+ * id's storage wiped on every load and no adoption of older stores — so no
+ * models but the ones a first run seeds, no saved session, no history, and the
+ * real store untouched. `Sienna.openAsNewUser()` opens one in a new tab.
  */
 window.Sienna = window.Sienna || {};
 
@@ -44,6 +50,27 @@ window.Sienna = window.Sienna || {};
 
   /** The application id, or null when the host has not declared one. */
   Sienna.appId = declared && /^[A-Za-z0-9_-]+$/.test(declared) ? declared : null;
+
+  /** Is this a new-user preview (`?newuser`)? See the header. */
+  Sienna.newUser = /[?&]newuser(=|&|$)/.test(window.location.search || '');
+  if (Sienna.newUser) {
+    Sienna.appId = (Sienna.appId || 'app') + '-newuser';
+    try {
+      var prefix = 'sienna.' + Sienna.appId + '.';
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(prefix) === 0) localStorage.removeItem(k);
+      }
+    } catch (e) { /* no storage: nothing to wipe */ }
+  }
+
+  /**
+   * Open this app in a new tab as a first-time user would see it. The real
+   * store is not touched; the preview has its own, emptied each time.
+   */
+  Sienna.openAsNewUser = function () {
+    window.open(window.location.href.split(/[?#]/)[0] + '?newuser', '_blank');
+  };
 
   /**
    * The storage key an app should use for a given slot.

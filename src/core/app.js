@@ -28,6 +28,15 @@
       .appendTo(this.$root)
       .menu({ items: items });
 
+    // A new-user preview says so, or two tabs of one app are easy to confuse.
+    if (Sienna.newUser) {
+      document.title = 'New user — ' + document.title;
+      $('<div class="slx-newuser-badge">')
+        .text('New-user preview')
+        .attr('title', 'A fresh store of its own, emptied every time it opens. Your models are untouched.')
+        .appendTo(this.$menu);
+    }
+
     var self = this;
     this.$workspace = $('<div class="slx-app-workspace">')
       .appendTo(this.$root)

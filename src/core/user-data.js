@@ -246,7 +246,7 @@
      */
     load: function () {
       var loaded = Sienna.persistence.readJSON(KEY);
-      if (!loaded && Sienna.appId) {
+      if (!loaded && Sienna.appId && !Sienna.newUser) {
         var legacy = Sienna.persistence.readJSON(Sienna.legacyStorageKey('userData.v1'));
         if (legacy && typeof legacy === 'object') {
           loaded = legacy;
