@@ -640,10 +640,18 @@ $.widget('sienna.workspace', {
       const accent = e.$panel[0].style.getPropertyValue('--slx-titlebar-bg');
       if (accent) $tab.css('--slx-tab-accent', accent);
       $('<span class="slx-tab-title">').text(e.$panel.panel('title')).appendTo($tab);
+      // The tab is this panel's titlebar, so it carries the panel's extra
+      // buttons too — or a collection in a tabbed area could not be arranged.
+      for (const c of e.$panel.panel('extraControls')) {
+        $('<button type="button" class="slx-panel-btn">').addClass(c.cls)
+          .attr({ title: c.title, 'aria-label': c.title })
+          .appendTo($tab)
+          .on('click', (ev) => { ev.preventDefault(); c.onClick(ev.currentTarget); });
+      }
       const $close = $('<button type="button" class="slx-tab-close" aria-label="Close" title="Close">')
         .appendTo($tab);
       $tab.on('mousedown', (ev) => {
-        if ($(ev.target).closest('.slx-tab-close').length) return;
+        if ($(ev.target).closest('button').length) return;
         if (id === this._active) return;
         this._dispatch('panel.activate', id, {});
         this.activate(id);

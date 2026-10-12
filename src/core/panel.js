@@ -14,6 +14,7 @@
  *   $el.panel('minimize');             // toggle; or ('minimize', true|false)
  *   $el.panel('maximize');             // toggle; or ('maximize', true|false)
  *   $el.panel('place', rect | null);   // let the workspace position it, or not
+ *   $el.panel('addControl', { cls, title, onClick });  // an extra titlebar button
  *
  * Classic script: uses the global jQuery (`$`) provided by the vendored
  * jquery.min.js + jquery-ui.js; no imports/exports.
@@ -453,6 +454,34 @@ $.widget('sienna.panel', {
     this._measure();
     this._updateButtons();
     return this;
+  },
+
+  /**
+   * An extra titlebar button, supplied by what the panel hosts — a container's
+   * "Arrange contents". It sits before the panel's own buttons, and a tab
+   * standing in for this panel's titlebar carries it too (`extraControls`),
+   * since a tab IS the titlebar there. `onClick` is given the button pressed,
+   * to anchor whatever it opens.
+   * @param {{ cls: string, title: string, onClick: (button: Element) => void }} control
+   */
+  addControl(control) {
+    this._extra = this._extra || [];
+    this._extra.push(control);
+    const $btn = this._controlButton(control.cls)
+      .attr({ title: control.title, 'aria-label': control.title })
+      .prependTo(this._controls);
+    this._on($btn, {
+      click: (e) => {
+        e.preventDefault();
+        control.onClick(e.currentTarget);
+      },
+    });
+    return this;
+  },
+
+  /** @returns {Array<{cls:string, title:string, onClick:Function}>} see addControl */
+  extraControls() {
+    return (this._extra || []).slice();
   },
 
   /** @returns {boolean} is a tiled or tabbed workspace positioning this panel? */

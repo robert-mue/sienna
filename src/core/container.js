@@ -95,6 +95,18 @@ $.widget('sienna.container', {
       });
     }
 
+    // "Arrange contents": the one control a container adds to its titlebar —
+    // and, through the panel, to the tab that stands in for it in a tabbed
+    // area, which is redrawn so the tab shows it at once.
+    if ($panel.length) {
+      $panel.panel('addControl', {
+        cls: 'slx-panel-arrange',
+        title: 'Arrange contents',
+        onClick: (button) => this._arrangeMenu(button),
+      });
+      if (outer) outer.arrange();
+    }
+
     const children = this.options.children || [];
     this.ready = children.length
       ? this._ws.workspace('restore', children)
@@ -110,6 +122,70 @@ $.widget('sienna.container', {
   mode(mode, direction) {
     if (direction) this._ws.workspace('option', 'direction', direction);
     this._ws.workspace('option', 'mode', mode);
+  },
+
+  /** The ways a container's contents can be arranged, as the menu offers them. */
+  _ARRANGEMENTS: [
+    ['Floating', 'floating'],
+    ['Tiled side by side', 'tiled', 'row'],
+    ['Tiled stacked', 'tiled', 'column'],
+    ['Tabbed', 'tabbed'],
+  ],
+
+  /**
+   * The menu behind "Arrange contents", opened under `button`. On the page
+   * body, not in the panel, so no workspace's `overflow: hidden` can clip it.
+   * Choosing is a logged action (`panel.arrange`, targeting this container's
+   * panel), so replay re-arranges too.
+   */
+  _arrangeMenu(button) {
+    if (this._$menu) { this._closeMenu(); return; }
+    const ws = this._ws.workspace('instance');
+    const now = ws.options.mode;
+    const dir = ws.options.direction;
+    const $menu = $('<div class="slx-popup" role="menu">').appendTo(document.body);
+    for (const [label, mode, direction] of this._ARRANGEMENTS) {
+      const current = mode === now && (mode !== 'tiled' || direction === dir);
+      $('<button type="button" class="slx-popup-item" role="menuitemradio">')
+        .attr('aria-checked', String(current))
+        .toggleClass('slx-popup-item--current', current)
+        .text(label)
+        .appendTo($menu)
+        .on('click', () => {
+          this._closeMenu();
+          const id = this.element.closest('.slx-panel').panel('id');
+          const run = () => this.mode(mode, direction);
+          if (Sienna.actions && id) {
+            Sienna.actions.dispatch({ type: 'panel.arrange', target: id, payload: { mode, direction: direction || null } }, run);
+          } else {
+            run();
+          }
+        });
+    }
+    const r = button.getBoundingClientRect();
+    $menu.css({
+      left: Math.min(r.left, window.innerWidth - $menu.outerWidth() - 4),
+      top: r.bottom + 2,
+    });
+    this._$menu = $menu;
+    // Any press elsewhere, or Escape, closes it. Added after this click has
+    // finished, or it would close the menu it just opened.
+    setTimeout(() => {
+      this._offMenu = (e) => {
+        if (e.type === 'keydown' ? e.key === 'Escape' : !$menu[0].contains(e.target)) this._closeMenu();
+      };
+      document.addEventListener('mousedown', this._offMenu, true);
+      document.addEventListener('keydown', this._offMenu, true);
+    });
+  },
+
+  _closeMenu() {
+    if (this._offMenu) {
+      document.removeEventListener('mousedown', this._offMenu, true);
+      document.removeEventListener('keydown', this._offMenu, true);
+      this._offMenu = null;
+    }
+    if (this._$menu) { this._$menu.remove(); this._$menu = null; }
   },
 
   /** Is there a panel inside, at any depth, that is not a container? */
@@ -147,6 +223,7 @@ $.widget('sienna.container', {
   },
 
   _destroy() {
+    this._closeMenu();
     this._ws.workspace('destroy').remove();
     this.element.removeClass('slx-container');
   },

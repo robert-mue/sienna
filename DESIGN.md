@@ -507,9 +507,12 @@ each later.
 1. **User-made layouts** — "save current arrangement as", rename, delete.
    Cheap when wanted: a saved layout is just `serialize()` with refs stripped.
 2. **Layout files and a shared gallery** — export/import, remote layout scripts.
-3. **A UI for switching mode at runtime** — modes are set by the layout. The
-   mechanism exists (`container('mode', …)`, the workspace's `mode` option) and
-   the demo's View ▸ Arrange container uses it as a stopgap.
+3. ~~**A UI for switching mode at runtime**~~ — *built 2026-10-12*, since the
+   point of modes is that a modeller changes them mid-session: every container
+   has an **Arrange contents** button (titlebar, and the tab standing in for
+   it in a tabbed area) opening Floating / Tiled side by side / Tiled stacked /
+   Tabbed. Logged as `panel.arrange`. The top level has no titlebar and is
+   set by the layout.
 4. **`focusGroup`** (the Model/Simulation mode switch) — a tiled top level shows
    both at once, which is what Simile had.
 5. **Dragging a panel between containers** — role placement covers the need.

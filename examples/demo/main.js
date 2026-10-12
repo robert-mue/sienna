@@ -15,10 +15,9 @@
   var app = new Sienna.App('#app');
   var models = Sienna.models;
 
-  // STOPGAP until layouts (DESIGN.md §20): View ▸ Arrange container and
-  // View ▸ Container accepts act on the container last clicked — clicking a
-  // container, or any panel inside one, picks it; clicking a top-level panel
-  // or the bare workspace picks none. Capture phase, so nothing inside can
+  // STOPGAP: View ▸ Container accepts acts on the container last clicked —
+  // clicking a container, or any panel inside one, picks it; clicking a
+  // top-level panel or the bare workspace picks none. Capture phase, so nothing inside can
   // swallow the click first.
   var $target = null;
   app.$workspace[0].addEventListener('mousedown', function (e) {
@@ -91,6 +90,10 @@
     // The panels re-opened into the layout were logged after this, each in its
     // own right, so replay must not open them a second time.
     return app.applyLayout(e.payload.name, { keepPanels: false });
+  });
+  Sienna.actions.onReplay('panel.arrange', function (e) {
+    var $p = byId(e.target);
+    if ($p) $p.panel('content').container('mode', e.payload.mode, e.payload.direction || undefined);
   });
   Sienna.actions.onReplay('panel.activate', function (e) {
     var $p = byId(e.target);
@@ -184,25 +187,7 @@
       {
         label: 'View',
         items: [
-          // STOPGAP, with the one in the Widgets menu: arrange the container
-          // last clicked. Layouts will set modes (DESIGN.md §20).
           { label: 'Layout', items: Sienna.layouts.menuItems(app) },
-          {
-            label: 'Arrange container',
-            items: [
-              ['Floating', 'floating'],
-              ['Tiled side by side', 'tiled', 'row'],
-              ['Tiled stacked', 'tiled', 'column'],
-              ['Tabbed', 'tabbed'],
-            ].map(function (m) {
-              return {
-                label: m[0],
-                onSelect: function () {
-                  if ($target && $target[0].isConnected) $target.container('mode', m[1], m[2]);
-                },
-              };
-            }),
-          },
           {
             label: 'Container accepts',
             items: ['model', 'note', 'tool'].map(function (role) {
