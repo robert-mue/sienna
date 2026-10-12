@@ -147,6 +147,11 @@
     },
 
     /** Has an app declared its documents? The File menu depends on it. */
+    /** What a document is called, singular — 'model', 'knowledge base'. */
+    label: function () {
+      return config.label;
+    },
+
     isConfigured: function () {
       return !!(config.widget || config.create);
     },
@@ -310,6 +315,27 @@
     },
 
     /**
+     * What choosing a document from a list means: if it is open already, make
+     * it current and bring its windows forward — a second diagram of a model
+     * nobody asked for is not "open" — and otherwise open it.
+     */
+    openOrShow: function (app, docPath, title) {
+      var mine = app.panels ? app.panels().filter(function ($p) {
+        return $p.panel('ref') === docPath;
+      }) : [];
+      if (!mine.length) return this.open(app, docPath, title);
+      // Every window of it, then the one holding its document widget last, so
+      // that is the one in front.
+      app.windows().forEach(function ($w) {
+        if ($w.panel('ref') === docPath) app.showWindow($w);
+      });
+      var main = mine.find(function ($p) { return app.widgetOf($p) === config.widget; }) || mine[0];
+      app.showWindow(main);
+      touchRecent(docPath);
+      this.setCurrent(docPath);
+    },
+
+    /**
      * The current document's path, or null. The stored choice wins as long as
      * it still names something; failing that, the frontmost bound panel.
      * @param {object} [app] only needed for the frontmost fallback
@@ -435,28 +461,17 @@
 
       // Two lists, and they are NOT the same list shortened. `Recent` is the
       // conventional handful you were last working on, in the order you last
-      // touched them. `All` is every stored document — needed because the
-      // store is the only copy there is, so a document must never become
-      // unreachable just by being old. A flat list of everything used to sit
-      // at the foot of this menu; at seventeen models that is not a menu.
+      // touched them. The plural (`Models`) is every stored document — needed
+      // because the store is the only copy there is, so a document must never
+      // become unreachable just by being old — with the current one marked.
+      // Choosing from either opens a document, or brings it forward if it is
+      // open, and makes it current. (There used to be a separate "Current
+      // model" list doing only the last of those; the menu bar now says which
+      // is current, and choosing is how you change it.)
       var docs = this.list();
       if (docs.length) {
         items.push({ label: '—' });
-
-        // Saying which one is current, and letting it be said. The marker is
-        // the only place the concept is visible at all until a panel's titlebar
-        // shows it, and a list where nothing is ticked would leave the user
-        // guessing what the commands above act on.
         var cur = this.current(app);
-        items.push({
-          label: 'Current ' + config.label,
-          items: byName(docs).map(function (doc) {
-            return {
-              label: (doc.path === cur ? '• ' : '\u2007 ') + doc.name,
-              onSelect: function () { self.setCurrent(doc.path); },
-            };
-          }),
-        });
 
         var recent = this.recent();
         items.push({
@@ -467,8 +482,12 @@
         });
 
         items.push({
-          label: 'All ' + plural(),
-          items: byName(docs).map(openItem),
+          label: plural().charAt(0).toUpperCase() + plural().slice(1),
+          items: byName(docs).map(function (doc) {
+            var item = openItem(doc);
+            item.label = (doc.path === cur ? '• ' : '\u2007 ') + doc.name;
+            return item;
+          }),
         });
       }
 
@@ -480,7 +499,7 @@
       function openItem(doc) {
         return {
           label: doc.name,
-          onSelect: function () { self.open(app, doc.path, doc.name); },
+          onSelect: function () { self.openOrShow(app, doc.path, doc.name); },
         };
       }
 

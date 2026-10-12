@@ -96,6 +96,7 @@
   App.prototype.setMenu = function (items) {
     this._appMenu = items || [];
     this.$menu.menu('items', this._menuItems());
+    this._showCurrent();
 
     // Keep File's document list current. Guarded by a signature so that edits
     // INSIDE a document — which fire constantly — do not rebuild the menu.
@@ -115,9 +116,34 @@
         if (now === last) return;
         last = now;
         self.$menu.menu('items', self._menuItems());
+        self._showCurrent();
       });
     }
     return this;
+  };
+
+  /**
+   * The current document, said in the menu bar after the menus — "Current
+   * model: Growth", with the model's colour — so which one the commands act on
+   * is in plain sight rather than something to go and find. Kept up to date
+   * by the same watch that keeps File's lists current.
+   */
+  App.prototype._showCurrent = function () {
+    if (!hasDocuments()) return;
+    if (!this._$current) {
+      this._$current = $('<div class="slx-current-doc">').insertAfter(this.$menu.children('.slx-menu-list'));
+    }
+    var label = Sienna.documents.label() || 'document';
+    var Label = label.charAt(0).toUpperCase() + label.slice(1);
+    var cur = Sienna.documents.current(this);
+    this._$current.empty();
+    if (!cur) {
+      this._$current.append($('<span class="slx-current-none">').text('No current ' + label));
+      return;
+    }
+    $('<span class="slx-current-swatch">').css('background', Sienna.subjectColour(cur)).appendTo(this._$current);
+    $('<span class="slx-current-label">').text('Current ' + label + ':').appendTo(this._$current);
+    $('<span class="slx-current-name">').text(this._docName(cur)).appendTo(this._$current);
   };
 
   /**

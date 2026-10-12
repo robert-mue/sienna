@@ -33,6 +33,37 @@ const THUMB_H = 230;
 const THUMB_BACK_W = 300;
 const THUMB_BACK_H = 200;
 
+/**
+ * The colour of a SUBJECT — what a panel with this `ref` is tinted, and what
+ * anything else showing the same subject (the menu bar's current-model marker)
+ * should use, so one model looks the same everywhere. Null for no subject.
+ *
+ * FNV-1a, then murmur3's finalizer. The mixing step is the part that matters:
+ * without it, strings as similar as `models/model2` and `models/model3` hash
+ * to neighbouring values and so to the same colour. Chosen from a palette of
+ * 24 (twelve hues by two lightnesses) rather than a hash modulo 360, which
+ * spreads over hues a human cannot tell apart. 38% saturation, not the 22%
+ * this started at: at low saturation two hues thirty degrees apart are both
+ * just "brown". Dark enough at either lightness that white titlebar text stays
+ * above 4.5:1 on the worst hue.
+ * @param {string} ref
+ * @returns {?string} a CSS colour
+ */
+Sienna.subjectColour = function (ref) {
+  if (!ref) return null;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < ref.length; i++) {
+    h = Math.imul(h ^ ref.charCodeAt(i), 0x01000193);
+  }
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  const slot = (h >>> 0) % 24;
+  const hue = (slot % 12) * 30 + 15;
+  const light = slot < 12 ? 26 : 34;
+  return 'hsl(' + hue + ', 38%, ' + light + '%)';
+};
+
 $.widget('sienna.panel', {
   options: {
     title: 'Panel',
@@ -366,30 +397,9 @@ $.widget('sienna.panel', {
    */
   _applyAccent() {
     const el = this.element[0];
-    const ref = this.options.ref;
-    if (!ref) {
-      el.style.removeProperty('--slx-titlebar-bg');
-      return;
-    }
-    // FNV-1a, then murmur3's finalizer. The mixing step is the part that
-    // matters: without it, strings as similar as `models/model2` and
-    // `models/model3` hash to neighbouring values and so to the same colour.
-    let h = 0x811c9dc5;
-    for (let i = 0; i < ref.length; i++) {
-      h = Math.imul(h ^ ref.charCodeAt(i), 0x01000193);
-    }
-    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b);
-    h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35);
-    h ^= h >>> 16;
-
-    const slot = (h >>> 0) % 24;
-    const hue = (slot % 12) * 30 + 15;
-    const light = slot < 12 ? 26 : 34;
-    // 38%, not the 22% this started at: at low saturation two hues thirty
-    // degrees apart are both just "brown", which is no use to someone scanning
-    // for a model's panels. Dark enough at either lightness that white titlebar
-    // text stays above 4.5:1 on the worst hue.
-    el.style.setProperty('--slx-titlebar-bg', 'hsl(' + hue + ', 38%, ' + light + '%)');
+    const colour = Sienna.subjectColour(this.options.ref);
+    if (colour) el.style.setProperty('--slx-titlebar-bg', colour);
+    else el.style.removeProperty('--slx-titlebar-bg');
   },
 
   /** @returns {string} this panel's stable instance id */
