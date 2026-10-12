@@ -45,8 +45,10 @@ $.widget('sienna.container', {
     /** Templates for per-document collections — see `workspace.templateFor`. */
     templates: [],
     /**
-     * Made from a template for one document (DESIGN.md §19.1): then it closes
-     * itself once nothing but containers is left inside it.
+     * Made from a template for one document (DESIGN.md §19.1) — false, or the
+     * template's title, which is how the app tells which template a collection
+     * came from. Then it closes itself once nothing but containers is left
+     * inside it.
      */
     fromTemplate: false,
   },

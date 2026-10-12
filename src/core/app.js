@@ -122,7 +122,18 @@
         // then look again — it now holds a place for the panel (§19.1). Unless
         // the collection came WITH the panel asked for, as a Simulation comes
         // with its run control: then that one is the answer, not a second.
-        target = plan.$ws.workspace('addPanel', this._fromTemplate(plan.template, ref))
+        // Templates marked `openWithDocument` are made alongside, so opening a
+        // model opens its Simulation window too.
+        target = this._makeCollection(plan.$ws, plan.template, ref)
+          .then(function ($made) {
+            var others = (plan.$ws.workspace('option', 'templates') || []).filter(function (t) {
+              return t.openWithDocument && t.title !== plan.template.title
+                && !self._collectionOf(plan.$ws, t, ref);
+            });
+            return others.reduce(function (p, t) {
+              return p.then(function () { return self._makeCollection(plan.$ws, t, ref); });
+            }, Promise.resolve()).then(function () { return $made; });
+          })
           .then(function ($made) {
             var given = config.widget && self._panelsIn($made).find(function ($p) {
               return self.widgetOf($p) === config.widget;
@@ -142,20 +153,61 @@
     });
   };
 
+  /** Make one document's collection from a template, in workspace `$ws`. */
+  App.prototype._makeCollection = function ($ws, template, ref) {
+    return $ws.workspace('addPanel', this._fromTemplate(template, ref, $ws));
+  };
+
+  /** The collection in `$ws` already made from this template for `ref`, if any. */
+  App.prototype._collectionOf = function ($ws, template, ref) {
+    var mark = template.title || true;
+    return $ws.workspace('panels').find(function ($p) {
+      var $c = $p.panel('content');
+      return $p.panel('ref') === ref && $c.hasClass('slx-container')
+        && $c.container('option', 'fromTemplate') === mark;
+    }) || null;
+  };
+
   /**
    * A template, made into one document's collection: its `ref` stamped
    * throughout (so it belongs to the document, and wears its colour), marked
-   * to close itself once emptied, and titled after the document.
+   * with the template it came from (so it closes itself once emptied, and is
+   * not made twice), and titled after the document.
+   *
+   * Its `geometry` may give fractions of the workspace (any number in (0, 1]),
+   * worked out now, so a window is the same share of a laptop's screen as of a
+   * big monitor's — a size in pixels is how a diagram came to be taller than
+   * a small workspace. Each further collection from the same template is
+   * offset a step down and right, so the second model's windows do not land
+   * exactly on the first's.
    */
-  App.prototype._fromTemplate = function (template, ref) {
+  App.prototype._fromTemplate = function (template, ref, $ws) {
     var copy = JSON.parse(JSON.stringify(template));
     (function stamp(c) {
       c.ref = ref;
       ((c.options && c.options.children) || []).forEach(stamp);
     })(copy);
     copy.options = copy.options || {};
-    copy.options.fromTemplate = true;
+    copy.options.fromTemplate = template.title || true;
     copy.title = this._docName(ref) + ': ' + (template.title || 'Collection');
+    if (copy.geometry && $ws) {
+      var W = $ws.innerWidth();
+      var H = $ws.innerHeight();
+      var frac = function (v, total) {
+        return typeof v === 'number' && v > 0 && v <= 1 ? Math.round(v * total) : v;
+      };
+      var g = copy.geometry;
+      var mark = copy.options.fromTemplate;
+      var step = 28 * $ws.workspace('panels').filter(function ($p) {
+        var $c = $p.panel('content');
+        return $c.hasClass('slx-container') && $c.container('option', 'fromTemplate') === mark;
+      }).length;
+      var width = frac(g.width, W);
+      var height = frac(g.height, H);
+      copy.geometry = { width: width, height: height };
+      if (g.left != null) copy.geometry.left = Math.max(0, Math.min(frac(g.left, W) + step, W - (width || 0)));
+      if (g.top != null) copy.geometry.top = Math.max(0, Math.min(frac(g.top, H) + step, H - (height || 0)));
+    }
     return copy;
   };
 

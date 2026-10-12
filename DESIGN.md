@@ -431,6 +431,18 @@ The mechanism:
   it happened to arrive. When the collection made for a request already holds
   a panel of the widget asked for, that panel IS the answer and no second one
   is opened.
+- **Windows, for the novice** (*2026-10-12*). Robert's considered default for
+  Simile is its own: a model window and a simulation window, floating, each
+  over half the screen wide — templates on the TOP-LEVEL workspace. Three
+  small additions make that work: a template marked `openWithDocument` is made
+  alongside whichever collection a document first needs (opening a model
+  opens both windows); a template's `geometry` may give fractions of the
+  workspace, worked out when it is made, so a window fits a laptop as well as a
+  monitor, and each further collection from one template is offset a step so a
+  second model's pair does not land on the first; and a tiled panel added with
+  `fit: true` takes its natural size, which suits a run control above the
+  displays. Revealing a panel also raises it at every level, so the window
+  asked for is in front of one opened alongside.
 - **A collection made from a template closes when it is emptied** — when no
   panel but containers is left anywhere inside it. sienna has no "close
   document" command: a document whose panels are all closed is closed as far

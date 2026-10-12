@@ -174,6 +174,7 @@ $.widget('sienna.workspace', {
       maximized = false,
       workingSize,
       share = 1,
+      fit = false,
     } = config;
 
     // An id naming a panel inside one of ours goes to the workspace that owns
@@ -262,6 +263,7 @@ $.widget('sienna.workspace', {
       title,
       options: { ...options },
       share,
+      fit: !!fit,
     };
     this._entries.push(entry);
     // A panel the user opens is the one they want to see. One being restored
@@ -345,6 +347,7 @@ $.widget('sienna.workspace', {
           options: { ...e.options, ...state },
           geometry: e.$panel.panel('geometry'),
           share: e.share,
+          fit: e.fit || undefined,
           minimized: e.$panel.panel('minimized'),
           maximized: e.$panel.panel('maximized'),
         };
@@ -472,7 +475,9 @@ $.widget('sienna.workspace', {
 
   /**
    * Make sure a panel, wherever it sits, can be seen: every tabbed workspace
-   * on the way up from it shows the tab that leads to it.
+   * on the way up from it shows the tab that leads to it, and at every level
+   * the panel, or the container holding it, comes to the front — so the window
+   * a request was for is not left under one opened alongside it.
    */
   reveal($panel) {
     let $p = $panel;
@@ -480,6 +485,7 @@ $.widget('sienna.workspace', {
       const $ws = $p.parent();
       const inst = $ws.workspace('instance');
       if (!inst) break;
+      inst._raise($p);
       if (inst.options.mode === 'tabbed' && inst._active !== $p.panel('id')) {
         inst.activate($p.panel('id'));
       }
@@ -530,8 +536,11 @@ $.widget('sienna.workspace', {
 
   /**
    * Side by side or stacked, filling the workspace. A minimised panel takes a
-   * strip the height of a titlebar; the rest share what is left in proportion
-   * to `share`, with a draggable divider in each gap.
+   * strip the height of a titlebar; a panel marked `fit` takes its natural size
+   * (a run control is a strip of controls, and a share of the height either
+   * wastes space or makes its fields scroll), up to most of the space; the
+   * rest share what is left in proportion to `share`, with a draggable divider
+   * in each gap between two of them.
    */
   _arrangeTiled(live, row) {
     const GAP = 6;
@@ -542,14 +551,25 @@ $.widget('sienna.workspace', {
     const $bar = live.length ? live[0].$panel.children('.slx-panel-titlebar') : $();
     const strip = ($bar.is(':visible') && $bar.outerHeight()) || 34;
     const min = (e) => e.$panel.panel('minimized');
-    const flex = live.filter((e) => !min(e));
+    const fits = (e) => e.fit && !min(e);
+    const flex = live.filter((e) => !min(e) && !e.fit);
     const sum = flex.reduce((a, e) => a + e.share, 0) || 1;
-    const avail = Math.max(0, total - GAP * (n - 1) - strip * (n - flex.length));
+    let avail = Math.max(0, total - GAP * (n - 1) - strip * live.filter(min).length);
+    // A fitted panel's natural size, measured with its imposed size let go.
+    const natural = new Map();
+    const cap = flex.length ? avail * 0.7 : avail;
+    for (const e of live.filter(fits)) {
+      e.$panel.css(row ? 'width' : 'height', '');
+      const size = (row ? e.$panel.outerWidth() : e.$panel.outerHeight()) || strip;
+      natural.set(e, Math.min(size, cap));
+    }
+    for (const size of natural.values()) avail -= size;
+    avail = Math.max(0, avail);
 
     this._setDividers(Math.max(0, n - 1));
     let pos = 0;
     live.forEach((e, i) => {
-      const size = min(e) ? strip : (avail * e.share) / sum;
+      const size = min(e) ? strip : natural.has(e) ? natural.get(e) : (avail * e.share) / sum;
       const a = Math.round(pos);
       const b = Math.round(pos + size);
       e.$panel.panel('place', row
@@ -562,7 +582,8 @@ $.widget('sienna.workspace', {
           .css(row
             ? { left: at, top: 0, width: GAP, height: H }
             : { left: 0, top: at, width: W, height: GAP })
-          .toggleClass('slx-divider--inert', min(e) || min(live[i + 1]));
+          .toggleClass('slx-divider--inert',
+            min(e) || min(live[i + 1]) || e.fit || live[i + 1].fit);
         pos += GAP;
       }
     });
@@ -588,7 +609,8 @@ $.widget('sienna.workspace', {
     const live = this._live();
     const a = live[i];
     const b = live[i + 1];
-    if (!a || !b || a.$panel.panel('minimized') || b.$panel.panel('minimized')) return;
+    if (!a || !b || a.fit || b.fit
+        || a.$panel.panel('minimized') || b.$panel.panel('minimized')) return;
     ev.preventDefault();
     const row = this.options.direction !== 'column';
     const size = ($p) => (row ? $p.outerWidth() : $p.outerHeight());
