@@ -456,6 +456,21 @@ webAKT "knowledge base".
 In a Simulation collection it belongs to that collection's model instead, by
 `ref`.
 
+### 19.2 Windows and panels — the words
+
+*Agreed 2026-10-12.* To a user, a **window** is a collection at the top level
+— a model window, a simulation window — and a **panel** is what holds one
+widget. A collection inside a window (Displays) is, to the user, part of the
+window. The code keeps its own words — every one of these is a `panel`, and a
+collection is a `container` — so this is vocabulary for menus and help, not a
+rename: View ▸ **Windows** lists the top-level panels to bring one to the
+front (`App.windows()`, `windowItems()`, `showWindow()`), and an app's
+**Arrange windows** commands lay chosen ones side by side
+(`App.sideBySide(list)`). A document's **primary** collection (Simile's model
+window, template flag `primary`) closing closes the document's other
+collections: a model closed is closed. Workspaces announce a close with
+`slxpanelclose` on their element, which bubbles to the app from any depth.
+
 ## 20. Layouts
 
 A layout is **`workspace.serialize()`-shaped data**: an array of panels, where a

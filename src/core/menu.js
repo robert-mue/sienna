@@ -1,7 +1,10 @@
 /**
  * `sienna.menu` — a customisable menu bar driven by a config of items. Each
  * item has a `label` and either an `onSelect(item, widget)` callback, a nested
- * `items` array (submenu), or both.
+ * `items` array (submenu), or both. `items` may also be a FUNCTION returning
+ * the array, read each time the menu is drawn — for a submenu whose contents
+ * change, such as a list of open windows; whoever changes them re-draws the
+ * menu (`items(sameItems)`).
  *
  * Note: only the jQuery UI *widget factory* is loaded (not jQuery UI's own
  * `menu` widget), so this `.menu()` plugin name does not collide.
@@ -89,10 +92,11 @@ $.widget('sienna.menu', {
       });
     }
 
-    if (Array.isArray(item.items) && item.items.length) {
+    const children = typeof item.items === 'function' ? item.items() : item.items;
+    if (Array.isArray(children) && children.length) {
       $li.addClass('slx-has-submenu');
       const $submenu = $('<ul class="slx-submenu">').appendTo($li);
-      for (const child of item.items) {
+      for (const child of children) {
         this._renderItem(child, $submenu);
       }
     }

@@ -43,6 +43,7 @@
       .workspace({
         onChange: function () {
           self._persist();
+          self._refreshWindows();
         },
         // Raising a panel that views a document makes that document current.
         // This is the shell joining its own two halves: the workspace reports
@@ -50,8 +51,29 @@
         onRaise: function (ref) {
           if (hasDocuments() && ref) Sienna.documents.setCurrent(ref);
         },
+      })
+      // From any depth, since workspaces say it on their own elements.
+      .on('slxpanelclose', function (e, $panel) {
+        self._closeCompanions($panel);
       });
   }
+
+  // A document's primary collection closing (its Model window, whether by its
+  // own close button or because its last panel went) closes the document's
+  // other collections: a model closed is closed. After the close in hand.
+  App.prototype._closeCompanions = function ($closed) {
+    var $c = $closed.panel('content');
+    if (!$c.hasClass('slx-container') || !$c.container('option', 'primary')) return;
+    var ref = $closed.panel('ref');
+    var self = this;
+    Promise.resolve().then(function () {
+      self.panels().forEach(function ($p) {
+        if (!$p[0].isConnected || $p[0] === $closed[0] || $p.panel('ref') !== ref) return;
+        var $pc = $p.panel('content');
+        if ($pc.hasClass('slx-container') && $pc.container('option', 'fromTemplate')) $p.panel('close');
+      });
+    });
+  };
 
   /** True once an app has declared what its documents are. */
   function hasDocuments() {
@@ -190,6 +212,7 @@
     copy.options = copy.options || {};
     copy.options.fromTemplate = template.title || true;
     copy.title = this._docName(ref) + ': ' + (template.title || 'Collection');
+    copy.options.primary = !!template.primary;
     if (copy.geometry && $ws) {
       var W = $ws.innerWidth();
       var H = $ws.innerHeight();
@@ -248,6 +271,70 @@
     });
     return out;
   }
+
+  /**
+   * @returns {JQuery[]} the WINDOWS — the panels at the top level of the
+   *   workspace, which is what a user means by a window (a model window, a
+   *   simulation window); what is inside one is a panel.
+   */
+  App.prototype.windows = function () {
+    return this.$workspace.workspace('panels');
+  };
+
+  /** Bring a window, or any panel, into view and to the front. */
+  App.prototype.showWindow = function ($panel) {
+    if ($panel.panel('minimized')) $panel.panel('minimize', false);
+    this.$workspace.workspace('reveal', $panel);
+    return this;
+  };
+
+  /**
+   * Menu items, one per open window, each bringing it to the front — for a
+   * View ▸ Windows submenu. Pass the method itself as the submenu's `items`
+   * (`function () { return app.windowItems(); }`) and it stays current: the
+   * menu is re-drawn whenever the set of windows changes.
+   */
+  App.prototype.windowItems = function () {
+    var self = this;
+    var list = this.windows();
+    if (!list.length) return [{ label: '(no windows open)' }];
+    return list.map(function ($p) {
+      return { label: $p.panel('title'), onSelect: function () { self.showWindow($p); } };
+    });
+  };
+
+  /**
+   * Lay these windows side by side across the workspace, each the full height,
+   * in the order given, and bring them to the front. For comparing two models,
+   * or two runs, or a model with its own run. Only in a floating top level —
+   * a tiled one already decides where its windows go.
+   */
+  App.prototype.sideBySide = function (list) {
+    var $ws = this.$workspace;
+    if ($ws.workspace('option', 'mode') !== 'floating' || !list.length) return this;
+    var W = $ws.innerWidth();
+    var H = $ws.innerHeight();
+    var w = Math.floor(W / list.length);
+    var self = this;
+    list.forEach(function ($p, i) {
+      if ($p.panel('maximized')) $p.panel('maximize', false);
+      if ($p.panel('minimized')) $p.panel('minimize', false);
+      $p.panel('setGeometry', { left: i * w, top: 0, width: w, height: H });
+      self.showWindow($p);
+    });
+    this._persist();
+    return this;
+  };
+
+  /** Re-draw the menu when the set of windows (or their titles) changes. */
+  App.prototype._refreshWindows = function () {
+    var sig = this.windows().map(function ($p) {
+      return $p.panel('id') + ':' + $p.panel('title');
+    }).join('|');
+    if (sig === this._windowsSig) return;
+    this._windowsSig = sig;
+    if (this._appMenu) this.$menu.menu('items', this._menuItems());
+  };
 
   /** @returns {?string} the widget name a panel is hosting, or null — at any depth. */
   App.prototype.widgetOf = function ($panel) {

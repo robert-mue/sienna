@@ -207,6 +207,11 @@ $.widget('sienna.workspace', {
       thumbnailable: spec ? spec.thumbnail : true,
       workingSize: workingSize || (spec && spec.workingSize) || null,
       onClose: () => {
+        // Said on the element, so it bubbles out of nested workspaces to
+        // whoever is listening further up — the app, which closes a model's
+        // other windows with its primary one. Before the panel goes, so it can
+        // still be asked what it was.
+        if (!this._clearing) this.element.trigger('slxpanelclose', [$panel]);
         if (this._active === panelId) {
           // The neighbour takes over the tab, the next one if there is one.
           const live = this._live();

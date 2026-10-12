@@ -51,6 +51,12 @@ $.widget('sienna.container', {
      * inside it.
      */
     fromTemplate: false,
+    /**
+     * A document's PRIMARY collection (its Model window): closing it closes
+     * the document's other collections too — a model closed is closed, not
+     * left with its simulation window behind. See `App`.
+     */
+    primary: false,
   },
 
   _create() {
@@ -220,6 +226,7 @@ $.widget('sienna.container', {
     return {
       ...this._ws.workspace('arrangement'),
       fromTemplate: this.options.fromTemplate,
+      primary: this.options.primary,
       children: this._ws.workspace('serialize'),
     };
   },

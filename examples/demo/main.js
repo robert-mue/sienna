@@ -189,6 +189,7 @@
       {
         label: 'View',
         items: [
+          { label: 'Windows', items: function () { return app.windowItems(); } },
           { label: 'Layout', items: Sienna.layouts.menuItems(app) },
           {
             label: 'Container accepts',
