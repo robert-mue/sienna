@@ -218,6 +218,8 @@ $.widget('sienna.panel', {
       });
     }
 
+    this._touchDrags();
+
     // A panel is a thumbnail when it is too small to be worked in — not when
     // some state says so. The rule then explains itself, needs nothing stored,
     // and follows a drag of the resize handle continuously.
@@ -234,6 +236,46 @@ $.widget('sienna.panel', {
 
     this._updateButtons();
     this._measure();
+  },
+
+  /**
+   * Let a finger (or pen) move and resize the panel. jQuery UI's draggable and
+   * resizable listen only for MOUSE events, and a touchscreen sends a drag as
+   * touch — so dragging a window by its titlebar did nothing at all. A press
+   * on this panel's own titlebar or a resize handle by anything but a mouse
+   * is replayed to jQuery UI as the mouse events it understands, until that
+   * pointer lifts. Cancelling the press stops the browser making its own
+   * mouse events from it, which would otherwise start a second drag.
+   * (`touch-action: none` on the titlebar and handles, in the stylesheet,
+   * stops the browser claiming the gesture as a scroll.)
+   */
+  _touchDrags() {
+    const el = this.element[0];
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' || e.button !== 0) return;
+      const t = e.target;
+      if (!(t instanceof Element) || t.closest('.slx-panel') !== el) return;   // a nested panel's own
+      if (!t.closest('.slx-panel-titlebar, .ui-resizable-handle') || t.closest('.slx-panel-controls')) return;
+      e.preventDefault();
+      const fire = (type, target, ev) => target.dispatchEvent(new MouseEvent(type, {
+        bubbles: true, cancelable: true, view: window,
+        clientX: ev.clientX, clientY: ev.clientY, screenX: ev.screenX, screenY: ev.screenY,
+        button: 0, buttons: type === 'mouseup' ? 0 : 1,
+      }));
+      fire('mousedown', t, e);
+      const id = e.pointerId;
+      const move = (ev) => { if (ev.pointerId === id) fire('mousemove', document, ev); };
+      const up = (ev) => {
+        if (ev.pointerId !== id) return;
+        document.removeEventListener('pointermove', move, true);
+        document.removeEventListener('pointerup', up, true);
+        document.removeEventListener('pointercancel', up, true);
+        fire('mouseup', document, ev);
+      };
+      document.addEventListener('pointermove', move, true);
+      document.addEventListener('pointerup', up, true);
+      document.addEventListener('pointercancel', up, true);
+    });
   },
 
   /**

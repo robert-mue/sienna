@@ -321,6 +321,11 @@ body {
   cursor: move;
 }
 
+/* A drag on a titlebar is the panel's, not a scroll (see panel _touchDrags). */
+.slx-panel-titlebar {
+  touch-action: none;
+}
+
 .slx-panel-title {
   font-weight: 600;
   font-size: 14px;
