@@ -34,6 +34,13 @@ const THUMB_BACK_W = 300;
 const THUMB_BACK_H = 200;
 
 /**
+ * How far (px) from a finger's reported point its contact is taken to reach,
+ * when the device does not say: a fingertip is about 10mm across, and its
+ * reported centre lands low of what it was aimed at.
+ */
+const TOUCH_SLOP = 12;
+
+/**
  * The colour of a SUBJECT — what a panel with this `ref` is tinted, and what
  * anything else showing the same subject (the menu bar's current-model marker)
  * should use, so one model looks the same everywhere. Null for no subject.
@@ -248,25 +255,46 @@ $.widget('sienna.panel', {
    * mouse events from it, which would otherwise start a second drag.
    * (`touch-action: none` on the titlebar and handles, in the stylesheet,
    * stops the browser claiming the gesture as a scroll.)
+   *
+   * A finger is not a point. The browser reports the middle of the contact,
+   * which on a 36px titlebar lands below it as often as on it — measured on a
+   * touchscreen, a press aimed at a window's titlebar arrived in the toolbar
+   * under it, where it was no titlebar press at all and the browser took the
+   * gesture as a pan. So a press counts as the titlebar's when its CONTACT
+   * AREA reaches it (`TOUCH_SLOP` at least, when the device reports none),
+   * unless it landed on a control of its own. And because such a press starts
+   * where `touch-action` permits panning, the touch it becomes is cancelled
+   * too, which is what stops the pan (and the long-press context menu).
+   * Since the reported point may then be inside the hosted widget — on a
+   * diagram's blank canvas, which pans when pressed — the panel decides
+   * first, while the press is still on its way in, and a press it takes goes
+   * no further: otherwise one finger moved the window and scrolled its
+   * content at once.
    */
   _touchDrags() {
     const el = this.element[0];
+    let claimed = null;   // the pointer id of a press this panel took over
     el.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' || e.button !== 0) return;
       const t = e.target;
       if (!(t instanceof Element) || t.closest('.slx-panel') !== el) return;   // a nested panel's own
-      if (!t.closest('.slx-panel-titlebar, .ui-resizable-handle') || t.closest('.slx-panel-controls')) return;
+      if (t.closest('.slx-panel-controls')) return;
+      const target = t.closest('.ui-resizable-handle') || this._touchedTitlebar(e, t);
+      if (!target) return;
       e.preventDefault();
-      const fire = (type, target, ev) => target.dispatchEvent(new MouseEvent(type, {
+      e.stopPropagation();   // the press is the panel's: the widget under it must not act on it too
+      claimed = e.pointerId;
+      const fire = (type, to, ev) => to.dispatchEvent(new MouseEvent(type, {
         bubbles: true, cancelable: true, view: window,
         clientX: ev.clientX, clientY: ev.clientY, screenX: ev.screenX, screenY: ev.screenY,
         button: 0, buttons: type === 'mouseup' ? 0 : 1,
       }));
-      fire('mousedown', t, e);
+      fire('mousedown', target, e);
       const id = e.pointerId;
       const move = (ev) => { if (ev.pointerId === id) fire('mousemove', document, ev); };
       const up = (ev) => {
         if (ev.pointerId !== id) return;
+        claimed = null;
         document.removeEventListener('pointermove', move, true);
         document.removeEventListener('pointerup', up, true);
         document.removeEventListener('pointercancel', up, true);
@@ -275,7 +303,34 @@ $.widget('sienna.panel', {
       document.addEventListener('pointermove', move, true);
       document.addEventListener('pointerup', up, true);
       document.addEventListener('pointercancel', up, true);
+    }, true);   // capturing, so it is decided before the widget inside hears the press
+    // The touch a claimed press becomes: cancelled, so the browser neither
+    // pans (and cancels our pointer) nor opens a context menu on a long press.
+    el.addEventListener('touchstart', (e) => {
+      if (claimed !== null) e.preventDefault();
+    }, { passive: false });
+    el.addEventListener('contextmenu', (e) => {
+      if (claimed !== null || (e.pointerType && e.pointerType !== 'mouse'
+          && e.target instanceof Element && e.target.closest('.slx-panel-titlebar'))) {
+        e.preventDefault();
+      }
     });
+  },
+
+  /**
+   * This panel's titlebar, if a finger press at `t` reached it: on it, or with
+   * its contact area overlapping it and not on a control of its own.
+   */
+  _touchedTitlebar(e, t) {
+    const bar = this._titlebar[0];
+    if (bar.contains(t)) return bar;
+    if (t.closest('button, input, select, textarea, a, [role="button"], [tabindex]')) return null;
+    const rx = Math.max(TOUCH_SLOP, (e.width || 0) / 2);
+    const ry = Math.max(TOUCH_SLOP, (e.height || 0) / 2);
+    const r = bar.getBoundingClientRect();
+    const reaches = e.clientX + rx > r.left && e.clientX - rx < r.right
+      && e.clientY + ry > r.top && e.clientY - ry < r.bottom;
+    return reaches ? bar : null;
   },
 
   /**
