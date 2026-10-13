@@ -28,14 +28,9 @@
       .appendTo(this.$root)
       .menu({ items: items });
 
-    // A new-user preview says so, or two tabs of one app are easy to confuse.
-    if (Sienna.newUser) {
-      document.title = 'New user — ' + document.title;
-      $('<div class="slx-newuser-badge">')
-        .text('New-user preview')
-        .attr('title', 'A store of its own, emptied when the preview was opened. Your models are untouched.')
-        .appendTo(this.$menu);
-    }
+    // A new-user preview says so in the tab title, or two tabs of one app are
+    // easy to confuse. Not in the page: whoever opened it knows they did.
+    if (Sienna.newUser) document.title = 'New user — ' + document.title;
 
     var self = this;
     this.$workspace = $('<div class="slx-app-workspace">')
@@ -119,6 +114,17 @@
         self._showCurrent();
       });
     }
+    return this;
+  };
+
+  /**
+   * A short note at the right-hand end of the menu bar — which release this
+   * is, say. The app's to word; the shell only gives it a place. Empty text
+   * removes it.
+   */
+  App.prototype.setNote = function (text, tooltip) {
+    if (!this._$note) this._$note = $('<div class="slx-app-note">').appendTo(this.$menu);
+    this._$note.text(text || '').attr('title', tooltip || null).toggle(!!text);
     return this;
   };
 
