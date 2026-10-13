@@ -492,7 +492,7 @@
       // kind of file too".
       var extra = typeof config.extraItems === 'function' ? config.extraItems() : null;
       if (extra && extra.length) {
-        items.push({ label: '—' });
+        items.push({ separator: true });
         extra.forEach(function (it) { items.push(it); });
       }
 
@@ -507,7 +507,7 @@
       // is current, and choosing is how you change it.)
       var docs = this.list();
       if (docs.length) {
-        items.push({ label: '—' });
+        items.push({ separator: true });
         var cur = this.current(app);
 
         var recent = this.recent();

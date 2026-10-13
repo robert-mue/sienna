@@ -6,6 +6,9 @@
  * change, such as a list of open windows; whoever changes them re-draws the
  * menu (`items(sameItems)`).
  *
+ * A dividing line between groups is `{ separator: true }` (or, as older
+ * configs say it, an item labelled `'—'`): a rule, not a button.
+ *
  * Note: only the jQuery UI *widget factory* is loaded (not jQuery UI's own
  * `menu` widget), so this `.menu()` plugin name does not collide.
  *
@@ -61,6 +64,10 @@ $.widget('sienna.menu', {
   },
 
   _renderItem(item, $container) {
+    if (item.separator || item.label === '—') {
+      $('<li class="slx-menu-separator" role="separator">').appendTo($container);
+      return;
+    }
     const $li = $('<li class="slx-menu-item">').appendTo($container);
     const $label = $('<button type="button" class="slx-menu-label">')
       .text(item.label)

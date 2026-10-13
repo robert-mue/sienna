@@ -127,6 +127,13 @@ body {
   display: none;
 }
 
+/* A dividing line between groups of commands (`{ separator: true }`). */
+.slx-menu-separator {
+  height: 1px;
+  margin: 4px 10px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .slx-submenu .slx-menu-label {
   display: block;
   width: 100%;
