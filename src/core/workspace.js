@@ -271,6 +271,10 @@ $.widget('sienna.workspace', {
       fit: !!fit,
     };
     this._entries.push(entry);
+    // Said on the element, so it bubbles out of nested workspaces to the app —
+    // the counterpart of `slxpanelclose`. Before arranging, so a listener that
+    // names the panel (an app has its own scheme) is in time for the tab.
+    this.element.trigger('slxpaneladd', [$panel]);
     // A panel the user opens is the one they want to see. One being restored
     // is not; the stored choice stands.
     if (!this._suspend) this._active = panelId;
