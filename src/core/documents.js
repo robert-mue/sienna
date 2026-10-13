@@ -156,6 +156,30 @@
       return !!(config.widget || config.create);
     },
 
+    /** Where documents live in `userData` — `models` holds `models/<id>`. */
+    root: function () {
+      return config.root;
+    },
+
+    /**
+     * Give a document a new name. Only its name: the id, and so its path and
+     * every panel's `ref`, stays as it was — a name is what people read, an id
+     * is what the store is keyed by, and renaming must not move anything.
+     * Undoable like any edit. Panels titled after the old name are retitled
+     * by `App`, which hears the change (so an undo retitles them back).
+     * @returns {boolean} whether anything changed
+     */
+    rename: function (docPath, name) {
+      var doc = Sienna.userData.get(docPath);
+      name = String(name == null ? '' : name).trim();
+      if (!doc || !name || name === doc.name) return false;
+      Sienna.actions.dispatch(
+        { type: 'documents.rename', target: docPath, payload: { name: name } },
+        function () { Sienna.userData.set(docPath + '/name', name); }
+      );
+      return true;
+    },
+
     /** `[{ id, path, name }]` for every document in the store. */
     list: function () {
       return Sienna.userData.keys(config.root).map(function (id) {
@@ -404,6 +428,19 @@
         {
           label: 'Save ' + config.label + ' as file…',
           onSelect: function () { withCurrent('saveAs'); },
+        },
+        {
+          label: 'Rename ' + config.label + '…',
+          onSelect: function () {
+            var p = self.current(app);
+            if (!p) {
+              window.alert('No ' + config.label + ' to rename — open one first.');
+              return;
+            }
+            var was = (Sienna.userData.get(p) || {}).name || p.split('/').pop();
+            var name = window.prompt('Rename the ' + config.label + ' "' + was + '" to:', was);
+            if (name != null) self.rename(p, name);
+          },
         },
         // The backup. Listed even when there is nothing to back up, because a
         // command that appears only once you have something to lose is one you

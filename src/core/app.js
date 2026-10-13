@@ -93,6 +93,19 @@
     this.$menu.menu('items', this._menuItems());
     this._showCurrent();
 
+    // A document renamed (or a rename undone): the panels titled after it
+    // follow. Heard here rather than done by `documents.rename`, so that undo
+    // and replay, which only put the name back, put the titles back too.
+    if (hasDocuments() && !this._nameWatch) {
+      var app = this;
+      var root = Sienna.documents.root();
+      this._nameWatch = Sienna.userData.subscribe(root, function (e) {
+        var m = new RegExp('^' + root + '/([^/]+)/name$').exec(e.ref || '');
+        if (!m) return;
+        app._retitle(root + '/' + m[1], e.prior || m[1], e.value || m[1]);
+      });
+    }
+
     // Keep File's document list current. Guarded by a signature so that edits
     // INSIDE a document — which fire constantly — do not rebuild the menu.
     if (hasDocuments() && !this._docWatch) {
@@ -366,6 +379,32 @@
     if (sig === this._windowsSig) return;
     this._windowsSig = sig;
     if (this._appMenu) this.$menu.menu('items', this._menuItems());
+  };
+
+  /**
+   * Every panel viewing `docPath` whose title begins with the document's old
+   * name — "Growth: Model", "Growth: diagram/1" — takes the new one; the rest
+   * of each title, a panel's number included, is left alone.
+   */
+  App.prototype._retitle = function (docPath, was, now) {
+    if (was === now) return;
+    var from = was + ': ';
+    var touched = [];
+    this.panels().forEach(function ($p) {
+      var t = $p.panel('title') || '';
+      if ($p.panel('ref') !== docPath || t.indexOf(from) !== 0) return;
+      $p.panel('title', now + ': ' + t.slice(from.length));
+      var $ws = $p.parent();
+      if (touched.indexOf($ws[0]) < 0) touched.push($ws[0]);
+    });
+    if (!touched.length) return;
+    // A tab copies its panel's title when it is drawn, so draw them again.
+    touched.forEach(function (ws) {
+      var $ws = $(ws);
+      if ($ws.workspace('instance')) $ws.workspace('arrange');
+    });
+    this._persist();
+    this._refreshWindows();
   };
 
   /** @returns {?string} the widget name a panel is hosting, or null — at any depth. */
