@@ -2,6 +2,9 @@
   --slx-border: #d0d0d7;
   --slx-titlebar-bg: #2f3542;
   --slx-titlebar-fg: #ffffff;
+  /* A panel inside a window (see panel _applyAccent): subordinate to it. */
+  --slx-titlebar-inner-bg: #dde0e5;
+  --slx-titlebar-inner-fg: #222222;
   --slx-menu-bg: #1e2330;
   --slx-menu-fg: #e6e8ef;
   --slx-accent: #4c8bf5;
@@ -315,6 +318,14 @@ body {
   background: var(--slx-titlebar-bg);
   color: var(--slx-titlebar-fg);
   user-select: none;
+}
+
+/* A panel inside a window: a quiet titlebar, subordinate to the window's. */
+.slx-panel--inner > .slx-panel-titlebar {
+  color: var(--slx-titlebar-inner-fg);
+}
+.slx-panel--inner > .slx-panel-titlebar .slx-panel-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .slx-panel--draggable .slx-panel-titlebar {

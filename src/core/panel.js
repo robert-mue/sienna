@@ -491,10 +491,21 @@ $.widget('sienna.panel', {
    * Both lightnesses are dark enough to keep white text readable. An unbound
    * panel keeps the stylesheet's own colour — not everything is a view of
    * something.
+   *
+   * A panel INSIDE another is light grey with dark text, unless it is the outermost panel
+   * showing its subject: the colour belongs to the window, and repeating it on
+   * every panel within made those look like windows too. So the diagram in a
+   * model's window is grey, while a model's collection inside an unbound area
+   * keeps the model's colour — it is where that colour is first shown.
    */
   _applyAccent() {
     const el = this.element[0];
-    const colour = Sienna.subjectColour(this.options.ref);
+    const ref = this.options.ref;
+    const outer = this.element.parents('.slx-panel').toArray();
+    const inner = outer.length > 0 && (!ref || outer.some((p) => $(p).panel('ref') === ref));
+    this.element.toggleClass('slx-panel--inner', inner);
+    // Still set as the titlebar colour, which a tab copies for its stripe.
+    const colour = inner ? 'var(--slx-titlebar-inner-bg)' : Sienna.subjectColour(ref);
     if (colour) el.style.setProperty('--slx-titlebar-bg', colour);
     else el.style.removeProperty('--slx-titlebar-bg');
   },
@@ -746,7 +757,7 @@ $.widget('sienna.panel', {
     this.element
       .removeClass(
         'slx-panel slx-panel--draggable slx-panel--minimized slx-panel--maximized'
-          + ' slx-panel--thumb',
+          + ' slx-panel--thumb slx-panel--inner',
       )
       .empty();
   },
