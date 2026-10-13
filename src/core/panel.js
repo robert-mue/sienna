@@ -186,7 +186,11 @@ $.widget('sienna.panel', {
       this.element.addClass('slx-panel--draggable').draggable({
         handle: '.slx-panel-titlebar',
         cancel: '.slx-panel-controls',
-        stack: '.slx-panel',
+        // No `stack`: the workspace raises a panel on every press, by its own
+        // counter. jQuery UI's stack renumbered EVERY `.slx-panel` on the page,
+        // nested ones too, on any drag — leaving the workspace's counter
+        // behind, so the next panel merely clicked was raised to a z-index
+        // below the others and stayed underneath them.
         // Kept inside the workspace here rather than by `containment:
         // 'parent'`, which for a panel bigger than its workspace allows only
         // NEGATIVE positions: the first nudge snapped a tall diagram upwards by

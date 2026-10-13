@@ -359,6 +359,8 @@ $.widget('sienna.workspace', {
           fit: e.fit || undefined,
           minimized: e.$panel.panel('minimized'),
           maximized: e.$panel.panel('maximized'),
+          // Front to back, so a reload stacks the panels as they were left.
+          z: parseInt(e.$panel.css('z-index'), 10) || 0,
         };
       });
   },
@@ -370,9 +372,17 @@ $.widget('sienna.workspace', {
     // Seed the id counter past any restored ids so new panels can't collide.
     this._seedIds(list.map((item) => item && item.id));
     try {
+      const added = [];
       for (const item of list) {
-        await this.addPanel(item);
+        added.push({ $panel: await this.addPanel(item), z: (item && item.z) || 0 });
       }
+      // Each panel was raised as it was added, which stacks them in the order
+      // they were made; put back the order they were LEFT in. A stable sort,
+      // so a session saved before `z` was kept keeps the order it had.
+      added
+        .filter((a) => a.$panel)
+        .sort((a, b) => a.z - b.z)
+        .forEach((a) => this._raise(a.$panel));
     } finally {
       this._suspend = false;
     }
@@ -725,6 +735,10 @@ $.widget('sienna.workspace', {
   _raise($panel) {
     this._z += 1;
     $panel.css('z-index', this._z);
+    // The stacking is saved (`serialize`'s `z`), so bringing a panel forward
+    // is a change like any other — or a reload restores whatever order the
+    // last move or resize happened to save.
+    this._emitChange();
   },
 
   _forget($panel) {
