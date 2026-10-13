@@ -500,11 +500,20 @@ $.widget('sienna.workspace', {
    */
   reveal($panel) {
     let $p = $panel;
+    let first = true;
     while ($p && $p.length) {
       const $ws = $p.parent();
       const inst = $ws.workspace('instance');
       if (!inst) break;
       inst._raise($p);
+      // Brought forward by a command (View ▸ Windows, Arrange windows) is
+      // brought forward all the same: say so, as a press does, or the window
+      // in front is not the one File ▸ Save acts on. Once, from the panel's
+      // own workspace — a container passes it outward.
+      if (first && typeof inst.options.onRaise === 'function') {
+        inst.options.onRaise($p.panel('ref'), $p);
+      }
+      first = false;
       if (inst.options.mode === 'tabbed' && inst._active !== $p.panel('id')) {
         inst.activate($p.panel('id'));
       }
