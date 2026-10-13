@@ -25,10 +25,14 @@
  *      app that has not declared itself keeps working and keeps its data.
  *
  * **New-user preview.** `?newuser` in the query string runs the app as someone
- * opening it for the first time: under its own id (`<app>-newuser`), with that
- * id's storage wiped on every load and no adoption of older stores — so no
- * models but the ones a first run seeds, no saved session, no history, and the
- * real store untouched. `Sienna.openAsNewUser()` opens one in a new tab.
+ * opening it for the first time: under its own id (`<app>-newuser`), with no
+ * adoption of older stores and the real store untouched. `?newuser=fresh`
+ * also empties that id's storage — no models but the ones a first run seeds,
+ * no saved session, no history — and then rewrites the address to plain
+ * `?newuser`, so the start-over happens once: from then on the preview is a
+ * user like any other, and a refresh brings back what they were doing rather
+ * than starting them over again. `Sienna.openAsNewUser()` opens a fresh one
+ * in a new tab.
  */
 window.Sienna = window.Sienna || {};
 
@@ -55,6 +59,8 @@ window.Sienna = window.Sienna || {};
   Sienna.newUser = /[?&]newuser(=|&|$)/.test(window.location.search || '');
   if (Sienna.newUser) {
     Sienna.appId = (Sienna.appId || 'app') + '-newuser';
+  }
+  if (Sienna.newUser && /[?&]newuser=fresh(&|$)/.test(window.location.search)) {
     try {
       var prefix = 'sienna.' + Sienna.appId + '.';
       for (var i = localStorage.length - 1; i >= 0; i--) {
@@ -62,14 +68,19 @@ window.Sienna = window.Sienna || {};
         if (k && k.indexOf(prefix) === 0) localStorage.removeItem(k);
       }
     } catch (e) { /* no storage: nothing to wipe */ }
+    // Once only: a refresh of this page must not start the user over again.
+    try {
+      history.replaceState(history.state, '',
+        window.location.href.replace(/([?&]newuser)=fresh(?=&|#|$)/, '$1'));
+    } catch (e) { /* cannot rewrite the address: each load starts over */ }
   }
 
   /**
    * Open this app in a new tab as a first-time user would see it. The real
-   * store is not touched; the preview has its own, emptied each time.
+   * store is not touched; the preview has its own, emptied as it opens.
    */
   Sienna.openAsNewUser = function () {
-    window.open(window.location.href.split(/[?#]/)[0] + '?newuser', '_blank');
+    window.open(window.location.href.split(/[?#]/)[0] + '?newuser=fresh', '_blank');
   };
 
   /**

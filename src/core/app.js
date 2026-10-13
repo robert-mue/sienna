@@ -33,7 +33,7 @@
       document.title = 'New user — ' + document.title;
       $('<div class="slx-newuser-badge">')
         .text('New-user preview')
-        .attr('title', 'A fresh store of its own, emptied every time it opens. Your models are untouched.')
+        .attr('title', 'A store of its own, emptied when the preview was opened. Your models are untouched.')
         .appendTo(this.$menu);
     }
 
