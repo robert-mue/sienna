@@ -10,18 +10,28 @@
   --slx-accent: #4c8bf5;
 }
 
-* {
+/* The whole window is the app's — unless the page is someone else's with
+   widgets embedded in it (`slx-embedding` on <html>, which
+   `widgetRegistry.embed` sets). There the page keeps its own margins, fonts
+   and box model, and only sienna's own elements get these — at zero
+   specificity (:where), so a widget's own rules still win over them. */
+html:not(.slx-embedding) *,
+:where(.slx-embedding) :where([class*="slx-"], [class*="slx-"] *) {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
+html:not(.slx-embedding) body,
+:where(.slx-embedding) :where([class*="slx-"]) {
   font-family:
     system-ui,
     -apple-system,
     Segoe UI,
     Roboto,
     sans-serif;
+}
+
+html:not(.slx-embedding) body {
+  margin: 0;
 }
 
 .slx-app {

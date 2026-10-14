@@ -158,7 +158,10 @@
      * is what a panel's `ref` would otherwise have told it.
      *
      * Resolves to the widget instance. The element is given `slx-embedded`, so
-     * a stylesheet can size an embedded widget without knowing which it is.
+     * a stylesheet can size an embedded widget without knowing which it is,
+     * and `<html>` `slx-embedding`, which keeps the shell's whole-window
+     * styles (body margin and font) off the page. A page can set that class
+     * itself to have it from the first paint.
      * @param {Element|jQuery|string} el
      * @param {string} name
      * @param {object} [options]
@@ -168,6 +171,9 @@
       var $el = window.jQuery(el).first();
       if (!$el.length) return Promise.reject(new Error('No element to embed "' + name + '" in'));
       var spec = registry[name];
+      // The page is not the app's: the shell's styles keep to its own
+      // elements (see the top of styles.css).
+      document.documentElement.classList.add('slx-embedding');
       return this.loadWidget(name).then(function (method) {
         var opts = window.jQuery.extend(true, {}, spec.options, options || {});
         $el.addClass('slx-embedded')[method](opts);
