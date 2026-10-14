@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sienna — widgets in a page</title>
+    <link rel="stylesheet" href="../../../src/styles.css" />
+    <style>
+      body { max-width: 40rem; margin: 2rem auto; padding: 0 16px; font: 16px/1.5 system-ui, sans-serif; }
+      .slx-embedded { border: 1px solid #ccc; border-radius: 6px; padding: 8px; margin: 1rem 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Widgets in an ordinary page</h1>
+
+    <p>No menu, no workspace, no panels: the demo's widgets placed straight into
+    this page with <code>Sienna.widgetRegistry.embed</code>. Both counters view
+    the same model, <code>models/tally</code>, so pressing either moves both.
+    Nothing is kept: reload the page and the tally is back to 3.</p>
+
+    <div id="first"></div>
+    <p>Some text between them, as a page has.</p>
+    <div id="second"></div>
+    <div id="clock"></div>
+
+    <!-- This page keeps nothing (see namespace.js): before the shell. -->
+    <script>window.SIENNA_EPHEMERAL = true;</script>
+
+    <script src="../../../vendor/jquery.min.js"></script>
+    <script src="../../../vendor/jquery-ui.js"></script>
+
+    <!-- Only the parts of the shell a widget needs: no panel, workspace, menu
+         or app. -->
+    <script src="../../../src/core/namespace.js"></script>
+    <script src="../../../src/core/persistence.js"></script>
+    <script src="../../../src/core/widget-registry.js"></script>
+    <script src="../../../src/core/user-data.js"></script>
+    <script src="../../../src/core/actions.js"></script>
+    <script src="../../../src/core/widget-base.js"></script>
+
+    <!-- The demo's own manifest, whose URLs are written for ../index.html. -->
+    <script src="../widgets/index.js"></script>
+    <script>
+      Sienna.widgetRegistry.setBase('../');
+      Sienna.userData.set('models/tally', { count: 3 });
+      Sienna.widgetRegistry.embed('#first', 'counter', { ref: 'models/tally' });
+      Sienna.widgetRegistry.embed('#second', 'counter', { ref: 'models/tally' });
+      Sienna.widgetRegistry.embed('#clock', 'clock');
+    </script>
+  </body>
+</html>

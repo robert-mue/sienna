@@ -16,6 +16,13 @@
 
   var registry = {}; // name -> { src, label, title, options, method, promise }
   var order = []; // registration order, for stable menu ordering
+  var base = ''; // prefix for relative widget script URLs (see setBase)
+
+  /** A widget's script URL as this page must ask for it. */
+  function scriptUrl(src) {
+    if (!base || /^([a-z][a-z0-9+.-]*:|\/)/i.test(src)) return src;
+    return base + src;
+  }
 
   Sienna.widgetRegistry = {
     /**
@@ -50,6 +57,17 @@
         method: null,
         promise: null,
       };
+    },
+
+    /**
+     * Say where the manifest's relative `src` URLs are relative TO, from this
+     * page: `setBase('../../')` on a page two folders below the app's
+     * `index.html`. A manifest's URLs are written for the app's own page, and
+     * a page with widgets embedded in it usually lives somewhere else; this
+     * lets it use the same manifest unchanged. Absolute URLs are left alone.
+     */
+    setBase: function (prefix) {
+      base = prefix ? String(prefix).replace(/\/?$/, '/') : '';
     },
 
     /** @returns {string[]} names of all registered widgets, in registration order */
@@ -109,7 +127,7 @@
       }
       entry.promise = new Promise(function (resolve, reject) {
         var script = document.createElement('script');
-        script.src = entry.src;
+        script.src = scriptUrl(entry.src);
         script.onload = function () {
           if (entry.method) {
             resolve(entry.method);
@@ -125,11 +143,36 @@
         };
         script.onerror = function () {
           entry.promise = null;
-          reject(new Error('Failed to load widget script: ' + entry.src));
+          reject(new Error('Failed to load widget script: ' + scriptUrl(entry.src)));
         };
         document.head.appendChild(script);
       });
       return entry.promise;
+    },
+
+    /**
+     * Put a widget straight into an element of an ordinary page — no menu, no
+     * workspace, no panel. Loads the widget's script if need be, then creates
+     * it on `el` with its registered options overlaid by `options`. A widget
+     * that views a model takes it as `options.ref` (see `widgetBase`), which
+     * is what a panel's `ref` would otherwise have told it.
+     *
+     * Resolves to the widget instance. The element is given `slx-embedded`, so
+     * a stylesheet can size an embedded widget without knowing which it is.
+     * @param {Element|jQuery|string} el
+     * @param {string} name
+     * @param {object} [options]
+     * @returns {Promise<object>}
+     */
+    embed: function (el, name, options) {
+      var $el = window.jQuery(el).first();
+      if (!$el.length) return Promise.reject(new Error('No element to embed "' + name + '" in'));
+      var spec = registry[name];
+      return this.loadWidget(name).then(function (method) {
+        var opts = window.jQuery.extend(true, {}, spec.options, options || {});
+        $el.addClass('slx-embedded')[method](opts);
+        return $el[method]('instance');
+      });
     },
   };
 })(window.Sienna);

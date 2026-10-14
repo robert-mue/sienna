@@ -7,6 +7,11 @@
  * wrappers. All access is guarded so a disabled/full/corrupt store (or a browser
  * that restricts storage on file://) degrades to "no persistence" rather than
  * throwing.
+ *
+ * On a page that keeps nothing (`Sienna.ephemeral`, see `namespace.js`) every
+ * slot reads as empty and every write is dropped, so nothing built on these
+ * slots — userData, the workspace session, an app's own settings — needs to
+ * know about it.
  */
 (function (Sienna) {
   'use strict';
@@ -18,6 +23,7 @@
   Sienna.persistence = {
     /** Guarded `JSON.stringify` write to an arbitrary key. */
     writeJSON: function (key, value) {
+      if (Sienna.ephemeral) return;
       try {
         localStorage.setItem(key, JSON.stringify(value));
       } catch (e) {
@@ -27,6 +33,7 @@
 
     /** Guarded read + parse; returns `null` on missing/corrupt/unavailable. */
     readJSON: function (key) {
+      if (Sienna.ephemeral) return null;
       try {
         var raw = localStorage.getItem(key);
         return raw ? JSON.parse(raw) : null;
@@ -37,6 +44,7 @@
 
     /** Guarded key removal. */
     removeKey: function (key) {
+      if (Sienna.ephemeral) return;
       try {
         localStorage.removeItem(key);
       } catch (e) {

@@ -55,6 +55,16 @@ window.Sienna = window.Sienna || {};
   /** The application id, or null when the host has not declared one. */
   Sienna.appId = declared && /^[A-Za-z0-9_-]+$/.test(declared) ? declared : null;
 
+  /**
+   * Does this page keep nothing? `window.SIENNA_EPHEMERAL = true`, set by the
+   * host page before these scripts, makes `persistence` a store that is always
+   * empty and never written: every visit starts from what the page itself
+   * supplies, and a reader's edits last as long as the tab. It is what a page
+   * with widgets embedded in it wants (reader edits are not kept), and it also
+   * keeps such a page out of the one localStorage every `file://` page shares.
+   */
+  Sienna.ephemeral = window.SIENNA_EPHEMERAL === true;
+
   /** Is this a new-user preview (`?newuser`)? See the header. */
   Sienna.newUser = /[?&]newuser(=|&|$)/.test(window.location.search || '');
   if (Sienna.newUser) {

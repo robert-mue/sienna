@@ -10,6 +10,8 @@
  *
  *   - Model access scoped to the host panel's `ref` (the path this panel is a
  *     view of): `_ref()` / `_bound()` / `_model()` / `_get(sub)` / `_set(sub,v)`.
+ *     A widget with no panel — embedded in an ordinary page — takes its `ref`
+ *     as an option instead (see `widgetRegistry.embed`).
  *     When the panel has no `ref` the widget is "unbound" and these no-op — the
  *     widget should fall back to local/option state.
  *   - `_action(name, payload, run)` — dispatch a logged action `'<widget>.<name>'`
@@ -27,6 +29,17 @@
   'use strict';
 
   $.widget('sienna.widgetBase', {
+    options: {
+      /**
+       * The path this widget views when it has NO host panel — a widget
+       * embedded straight into an ordinary page, where there is no panel to
+       * carry a `ref`. Inside a panel the panel's `ref` is the answer and this
+       * is ignored: one widget has one subject, and the panel is where the
+       * shell looks for it (titles, colours, the File menu).
+       */
+      ref: '',
+    },
+
     /**
      * A widget opened with a `path` option but no panel `ref` binds its panel
      * to that path. A panel's `ref` is how the shell knows what a panel is a
@@ -56,10 +69,14 @@
       return $p.length ? $p.panel('id') : null;
     },
 
-    /** @returns {string} the model path this widget views ('' when unbound) */
+    /**
+     * @returns {string} the model path this widget views ('' when unbound):
+     *   its panel's `ref`, or, with no panel at all, its own `ref` option.
+     */
     _ref: function () {
       var $p = this._panel();
-      return $p.length ? $p.panel('ref') || '' : '';
+      if ($p.length) return $p.panel('ref') || '';
+      return (this.options && this.options.ref) || '';
     },
 
     /** @returns {boolean} whether the widget is bound to a model */
