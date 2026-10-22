@@ -205,18 +205,18 @@
         tk.widgets.forEach(function (w) {
           var name = baseName(w.src);
           var $li = $('<li>').appendTo($ul);
-          if (picked && picked[name]) $li.text(name + ' (chosen file)');
-          else if (gone.indexOf(name) >= 0) $li.text(name + ' — not chosen yet').addClass('slx-dialog-missing');
+          if (picked && picked[name]) $li.text(name + ' (selected file)');
+          else if (gone.indexOf(name) >= 0) $li.text(name + ' — not selected yet').addClass('slx-dialog-missing');
           else $li.text(w.src);
         });
         $need.empty();
         if (gone.length) {
           $('<p class="slx-dialog-hint">').text(
-            'The toolkit was chosen as a file, and a browser does not tell a page which folder a chosen '
-            + 'file is in, so its widget files must be chosen too (they are usually in the same folder).')
+            'The toolkit was selected as a file, and a browser does not tell a page which folder a selected '
+            + 'file is in, so its widget files must be individually selected (they are usually in the same folder).')
             .appendTo($need);
           $('<button type="button" class="slx-dialog-btn">')
-            .text(gone.length === 1 ? 'Choose ' + gone[0] + '…' : 'Choose these ' + gone.length + ' files…')
+            .text('Select the files you want…')
             .on('click', function () { $file.trigger('click'); })
             .appendTo($need);
         }
@@ -279,7 +279,7 @@
               });
             }
             if (tkFile && !isAbsolute(w.src)) {
-              problems.push(baseName(w.src) + ': listed by the toolkit, but not chosen, so not added.');
+              problems.push(baseName(w.src) + ': listed by the toolkit, but not selected, so not added.');
               return;
             }
             return runOne(w.src, { integrity: w.integrity }).then(function (r) {
@@ -337,13 +337,13 @@
     $or.append(document.createTextNode('or '));
     var $file = $('<input type="file" accept=".js,text/javascript" multiple hidden>').appendTo($b);
     $('<button type="button" class="slx-dialog-link">')
-      .text(toolkit ? 'choose the toolkit file and its widget files…' : 'choose a file on this computer…')
+      .text(toolkit ? 'select the toolkit file and its widget files…' : 'select a file on this computer…')
       .on('click', function () { $file.trigger('click'); })
       .appendTo($or);
     if (location.protocol !== 'file:') {
       $('<p class="slx-dialog-hint">').text(
         'This app is served from the web, so it cannot load a file on your computer by its path: '
-        + 'choose the file instead. It is kept with your settings.').appendTo($b);
+        + 'select the file instead. It is kept with your settings.').appendTo($b);
     }
     warning().appendTo($b);
     var d = dialog(toolkit ? 'Add a toolkit' : 'Add a widget', $b, [
@@ -398,7 +398,7 @@
           var $h = $('<div class="slx-added-toolkit">').appendTo($g);
           $('<span>').text('Toolkit: ').appendTo($h);
           describe(g.tk).appendTo($h);
-          $('<div class="slx-added-src">').text(g.tk.src || (g.tk.file && g.tk.file.name + ' (chosen file)') || '').appendTo($h);
+          $('<div class="slx-added-src">').text(g.tk.src || (g.tk.file && g.tk.file.name + ' (selected file)') || '').appendTo($h);
           $('<button type="button" class="slx-dialog-btn">').text('Remove toolkit').on('click', function () {
             g.widgets.forEach(function (w) { remove(w.name); });
             draw();
@@ -407,7 +407,7 @@
         g.widgets.forEach(function (w) {
           var $w = $('<div class="slx-added-widget">').appendTo($g);
           describe(w).appendTo($w);
-          $('<div class="slx-added-src">').text(w.src || (w.file && w.file.name + ' (chosen file, kept with your settings)') || '').appendTo($w);
+          $('<div class="slx-added-src">').text(w.src || (w.file && w.file.name + ' (selected file, kept with your settings)') || '').appendTo($w);
           $('<button type="button" class="slx-dialog-btn">').text('Remove').on('click', function () {
             remove(w.name);
             draw();
