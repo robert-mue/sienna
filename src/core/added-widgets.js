@@ -176,17 +176,61 @@
     });
   }
 
-  /** A toolkit's widgets: show the list, and load them only on a yes. */
-  function confirmToolkit(tk, picked) {
+  /**
+   * A toolkit's widgets: show the list, and load them only on a yes.
+   *
+   * A toolkit CHOSEN AS A FILE cannot find the widget files beside it: a
+   * browser never tells a page which folder a chosen file came from, only
+   * the files themselves. So any it lists by a relative URL must be chosen
+   * too — with it, or here, where the missing ones are named and a button
+   * chooses them (added to `picked`).
+   */
+  function confirmToolkit(tk, picked, fromFile) {
     return new Promise(function (resolve) {
       var $b = $('<div>');
       describe(tk).appendTo($b);
       $('<p>').text('It lists ' + tk.widgets.length + ' widget' + (tk.widgets.length === 1 ? '' : 's') + ':').appendTo($b);
       var $ul = $('<ul class="slx-dialog-urls">').appendTo($b);
-      tk.widgets.forEach(function (w) {
-        var shown = picked && picked[baseName(w.src)] ? baseName(w.src) + ' (chosen file)' : w.src;
-        $('<li>').text(shown).appendTo($ul);
+      var $need = $('<div class="slx-dialog-need">').appendTo($b);
+      var $file = $('<input type="file" accept=".js,text/javascript" multiple hidden>').appendTo($b);
+      function missing() {
+        if (!fromFile) return [];
+        return tk.widgets.filter(function (w) {
+          return !isAbsolute(w.src) && !picked[baseName(w.src)];
+        }).map(function (w) { return baseName(w.src); });
+      }
+      function draw() {
+        $ul.empty();
+        var gone = missing();
+        tk.widgets.forEach(function (w) {
+          var name = baseName(w.src);
+          var $li = $('<li>').appendTo($ul);
+          if (picked && picked[name]) $li.text(name + ' (chosen file)');
+          else if (gone.indexOf(name) >= 0) $li.text(name + ' — not chosen yet').addClass('slx-dialog-missing');
+          else $li.text(w.src);
+        });
+        $need.empty();
+        if (gone.length) {
+          $('<p class="slx-dialog-hint">').text(
+            'The toolkit was chosen as a file, and a browser does not tell a page which folder a chosen '
+            + 'file is in, so its widget files must be chosen too (they are usually in the same folder).')
+            .appendTo($need);
+          $('<button type="button" class="slx-dialog-btn">')
+            .text(gone.length === 1 ? 'Choose ' + gone[0] + '…' : 'Choose these ' + gone.length + ' files…')
+            .on('click', function () { $file.trigger('click'); })
+            .appendTo($need);
+        }
+      }
+      $file.on('change', function () {
+        var files = Array.prototype.slice.call(this.files || []);
+        Promise.all(files.map(function (f) {
+          return f.text().then(function (text) {
+            picked[f.name] = { name: f.name, text: text, url: blobUrl(text) };
+          });
+        })).then(draw);
+        this.value = '';
       });
+      draw();
       warning().appendTo($b);
       var yes = false;
       // Esc, the backdrop or Cancel: no.
@@ -218,7 +262,7 @@
 
     function loadToolkit(tk, tkFile) {
       var key = tk.name || tk.src;
-      return confirmToolkit(tk, picked).then(function (yes) {
+      return confirmToolkit(tk, picked, !!tkFile).then(function (yes) {
         if (!yes) { problems.push('The toolkit\'s widgets were not loaded.'); return; }
         store.toolkits = store.toolkits.filter(function (o) { return o.key !== key; });
         store.toolkits.push({
@@ -235,7 +279,7 @@
               });
             }
             if (tkFile && !isAbsolute(w.src)) {
-              problems.push(baseName(w.src) + ': listed by the toolkit but not among the files chosen.');
+              problems.push(baseName(w.src) + ': listed by the toolkit, but not chosen, so not added.');
               return;
             }
             return runOne(w.src, { integrity: w.integrity }).then(function (r) {

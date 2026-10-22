@@ -788,3 +788,9 @@ html:not(.slx-embedding) body {
   word-break: break-all;
   margin: 4px 0;
 }
+.slx-dialog-missing {
+  color: #8a2020;
+}
+.slx-dialog-need .slx-dialog-btn {
+  margin-bottom: 6px;
+}

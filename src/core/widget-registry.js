@@ -244,7 +244,9 @@
       // Never replace a built-in widget, another added widget, or anything
       // jQuery already answers to: `$.widget` would overwrite it silently.
       if (mine && !(mine.external && mine.src === src)) {
-        d.problems.push('There is already a widget called "' + name + '"; this one was not added.');
+        d.problems.push(mine && mine.external
+          ? '"' + (mine.label || name) + '" has already been added; to replace it, remove it first (Widgets ▸ Manage added widgets…).'
+          : 'The app already has a widget called "' + name + '"; this one was not added.');
         return false;
       }
       if (!mine && $.fn[name]) {
