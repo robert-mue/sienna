@@ -106,6 +106,14 @@
       });
     }
 
+    // Widgets the user adds (added-widgets.js) appear in the app's Widgets
+    // menu, which is drawn from a function: re-draw when the set changes.
+    if (Sienna.addedWidgets && !this._addedWatch) {
+      var me = this;
+      this._addedWatch = true;
+      Sienna.addedWidgets.onChange(function () { me.$menu.menu('items', me._menuItems()); });
+    }
+
     // Keep File's document list current. Guarded by a signature so that edits
     // INSIDE a document — which fire constantly — do not rebuild the menu.
     if (hasDocuments() && !this._docWatch) {

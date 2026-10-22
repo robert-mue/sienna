@@ -281,14 +281,31 @@ $.widget('sienna.workspace', {
     this._arrange();
 
     if (widget) {
-      const method = await Sienna.widgetRegistry.loadWidget(widget);
-      entry.method = method;
-      const inst = $panel.panel('content')[method]({ ...options })[method]('instance');
-      // A widget with more to build after its constructor — a container
-      // restoring its children — says so with a `ready` promise, and the panel
-      // is not open until it settles.
-      if (inst && inst.ready && typeof inst.ready.then === 'function') {
-        await inst.ready;
+      let method = null;
+      try {
+        method = await Sienna.widgetRegistry.loadWidget(widget);
+      } catch (err) {
+        // A widget that cannot be had — one the user added whose file has
+        // gone, or one this app has never heard of (a session from elsewhere)
+        // — leaves a panel saying so rather than an empty box. The entry
+        // stays, so the panel is still saved, and comes back working once the
+        // widget can be loaded again.
+        const spec = Sienna.widgetRegistry.spec(widget);
+        $('<div class="slx-missing-widget">')
+          .append($('<strong>').text('This widget could not be loaded.'))
+          .append($('<p>').text(err && err.message ? err.message : String(err)))
+          .append(spec && spec.src ? $('<p class="slx-missing-src">').text(spec.src) : null)
+          .appendTo($panel.panel('content'));
+      }
+      if (method) {
+        entry.method = method;
+        const inst = $panel.panel('content')[method]({ ...options })[method]('instance');
+        // A widget with more to build after its constructor — a container
+        // restoring its children — says so with a `ready` promise, and the panel
+        // is not open until it settles.
+        if (inst && inst.ready && typeof inst.ready.then === 'function') {
+          await inst.ready;
+        }
       }
     }
 

@@ -28,7 +28,8 @@
   }, true);
 
   // One Widgets entry per registered widget, in registration order.
-  var widgetItems = Sienna.widgetRegistry.list().map(function (w) {
+  // The widgets the user added (added-widgets.js) come after, from the shell.
+  var widgetItems = Sienna.widgetRegistry.list().filter(function (w) { return !w.external; }).map(function (w) {
     return {
       label: w.label,
       onSelect: function () {
@@ -163,7 +164,7 @@
           { label: 'Redo', onSelect: function () { Sienna.history.redo(); } },
         ],
       },
-      { label: 'Widgets', items: widgetItems },
+      { label: 'Widgets', items: function () { return widgetItems.concat(Sienna.addedWidgets.menuItems(app)); } },
       {
         label: 'Session',
         items: [

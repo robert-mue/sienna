@@ -17,6 +17,25 @@
   var registry = {}; // name -> { src, label, title, options, method, promise }
   var order = []; // registration order, for stable menu ordering
   var base = ''; // prefix for relative widget script URLs (see setBase)
+  // What each script loaded by `loadScript` declared as it ran, by its URL:
+  // { widgets: [meta…], toolkit: meta|null, problems: [text…] }.
+  var declared = {};
+
+  /** The URL of the script running now, absolute ('' outside a script). */
+  function runningScript() {
+    var s = document.currentScript;
+    return (s && s.src) || '';
+  }
+
+  function declaredFor(src) {
+    if (!declared[src]) declared[src] = { widgets: [], toolkit: null, problems: [] };
+    return declared[src];
+  }
+
+  /** `href` resolved against `from` (a toolkit's own URL); absolute is left alone. */
+  function resolveAgainst(href, from) {
+    try { return new URL(href, from || document.baseURI).href; } catch (e) { return href; }
+  }
 
   /** A widget's script URL as this page must ask for it. */
   function scriptUrl(src) {
@@ -54,9 +73,23 @@
         thumbnail: spec.thumbnail !== false,
         workingSize: spec.workingSize || null,
         role: spec.role || null,
+        // A widget added by the user from a URL (see `Sienna.widget` below):
+        // who made it and what it is, for the shell to show before and after.
+        external: !!spec.external,
+        notes: spec.notes || '',
+        author: spec.author || '',
+        version: spec.version || '',
+        integrity: spec.integrity || '',
         method: null,
         promise: null,
       };
+    },
+
+    /** Forget a widget (one the user added and has now removed). */
+    unregister: function (name) {
+      if (!registry[name]) return;
+      delete registry[name];
+      order = order.filter(function (n) { return n !== name; });
     },
 
     /**
@@ -88,6 +121,7 @@
           label: e.label,
           title: e.title,
           options: e.options,
+          external: e.external,
         };
       });
     },
@@ -99,6 +133,8 @@
       return {
         name: name, label: e.label, title: e.title, options: e.options,
         thumbnail: e.thumbnail, workingSize: e.workingSize, role: e.role,
+        src: e.src, external: e.external, notes: e.notes, author: e.author,
+        version: e.version, integrity: e.integrity,
       };
     },
 
@@ -128,6 +164,12 @@
       entry.promise = new Promise(function (resolve, reject) {
         var script = document.createElement('script');
         script.src = scriptUrl(entry.src);
+        if (entry.integrity) {
+          // Subresource Integrity: a file that has changed since it was
+          // pinned is refused. Needs the server's CORS consent, hence this.
+          script.integrity = entry.integrity;
+          script.crossOrigin = 'anonymous';
+        }
         script.onload = function () {
           if (entry.method) {
             resolve(entry.method);
@@ -148,6 +190,114 @@
         document.head.appendChild(script);
       });
       return entry.promise;
+    },
+
+    /**
+     * Run a script the user named (a widget or a toolkit, by URL) and resolve
+     * to what it declared as it ran: `{ widgets: [spec…], toolkit, problems }`.
+     * Rejects only if the script could not be fetched at all. Running it is
+     * the trust decision, so a caller asks the user BEFORE calling this.
+     * @param {string} url
+     * @param {{ integrity?: string }} [opts]
+     */
+    loadScript: function (url, opts) {
+      var src = resolveAgainst(url);
+      delete declared[src];
+      return new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = src;
+        if (opts && opts.integrity) {
+          script.integrity = opts.integrity;
+          script.crossOrigin = 'anonymous';
+        }
+        script.onload = function () {
+          var d = declaredFor(src);
+          if (!d.widgets.length && !d.toolkit && !d.problems.length) {
+            d.problems.push('It ran, but declared neither a widget (Sienna.widget) nor a toolkit (Sienna.toolkit).');
+          }
+          resolve({ widgets: d.widgets.slice(), toolkit: d.toolkit, problems: d.problems.slice() });
+        };
+        script.onerror = function () {
+          reject(new Error('Could not load ' + url + ' (no such file, no network, or refused by the browser).'));
+        };
+        document.head.appendChild(script);
+      });
+    },
+
+    /** See `Sienna.widget`. */
+    _declareWidget: function (meta) {
+      var src = runningScript();
+      var d = declaredFor(src);
+      var $ = window.jQuery;
+      meta = meta || {};
+      var name = meta.name;
+      if (!name || !/^[A-Za-z][A-Za-z0-9_]*$/.test(name)) {
+        d.problems.push('A widget needs a name of letters, digits and _ (starting with a letter); got "' + (name || '') + '".');
+        return false;
+      }
+      if ((meta.contract || 1) > Sienna.widgetContract) {
+        d.problems.push('"' + name + '" needs a newer version of the shell (widget contract ' + meta.contract
+          + '; this one is ' + Sienna.widgetContract + ').');
+        return false;
+      }
+      var mine = registry[name];
+      // Never replace a built-in widget, another added widget, or anything
+      // jQuery already answers to: `$.widget` would overwrite it silently.
+      if (mine && !(mine.external && mine.src === src)) {
+        d.problems.push('There is already a widget called "' + name + '"; this one was not added.');
+        return false;
+      }
+      if (!mine && $.fn[name]) {
+        d.problems.push('"' + name + '" is a name the page already uses; this widget was not added.');
+        return false;
+      }
+      if (!meta.widget || typeof meta.widget !== 'object') {
+        d.problems.push('"' + name + '" has no `widget` (the widget\'s own methods).');
+        return false;
+      }
+      if (!$.sienna[name]) $.widget('sienna.' + name, meta.base || $.sienna.widgetBase, meta.widget);
+      var spec = {
+        src: src, label: meta.label, title: meta.title, options: meta.options,
+        thumbnail: meta.thumbnail, workingSize: meta.workingSize, role: meta.role,
+        external: true, notes: meta.notes, author: meta.author, version: meta.version,
+      };
+      if (mine) {
+        // Already known (remembered from an earlier visit, now being loaded
+        // for use): keep the entry, so a `loadWidget` waiting on it resolves.
+        mine.method = name;
+      } else {
+        this.register(name, spec);
+        registry[name].method = name;
+      }
+      spec.name = name;
+      d.widgets.push(spec);
+      return true;
+    },
+
+    /** See `Sienna.toolkit`. */
+    _declareToolkit: function (meta) {
+      var src = runningScript();
+      var d = declaredFor(src);
+      meta = meta || {};
+      var list = Array.isArray(meta.widgets) ? meta.widgets : [];
+      if (!list.length) {
+        d.problems.push('The toolkit lists no widgets.');
+        return false;
+      }
+      d.toolkit = {
+        src: src,
+        name: meta.name || '',
+        label: meta.label || meta.name || src,
+        notes: meta.notes || '',
+        author: meta.author || '',
+        version: meta.version || '',
+        // Relative to the toolkit's own URL, so a toolkit can be a folder.
+        widgets: list.map(function (w) {
+          var o = typeof w === 'string' ? { src: w } : (w || {});
+          return { src: resolveAgainst(o.src, src), integrity: o.integrity || '' };
+        }),
+      };
+      return true;
     },
 
     /**
@@ -180,5 +330,51 @@
         return $el[method]('instance');
       });
     },
+  };
+
+  /**
+   * The version of the widget contract this shell hosts. A widget declares
+   * the one it was written for (`contract`, default 1); one newer than this
+   * is refused with a message rather than half working.
+   */
+  Sienna.widgetContract = 1;
+
+  /**
+   * How a widget that is not built into the app declares itself — the whole
+   * of an added widget's script is one call:
+   *
+   *   Sienna.widget({
+   *     name: 'dice',                 // its name: letters, digits, _
+   *     label: 'Dice', title: 'Dice', // menu label, panel title
+   *     role: 'display',              // which collection it opens in (optional)
+   *     options: { sides: 6 },        // default options (optional)
+   *     notes: 'Rolls a die.', author: 'A. N. Other', version: '1.0',
+   *     contract: 1,                  // the widget contract it was written for
+   *     widget: { _create: function () { … }, … },  // the jQuery UI widget
+   *   });
+   *
+   * `widget` is the prototype `$.widget` is given; it extends
+   * `$.sienna.widgetBase` (or `base`, if given), so `_ref`, `_get`, `_set`,
+   * `_action` and `_watchModel` are there to use. A name already taken is
+   * refused: an added widget can never replace one the app has.
+   */
+  Sienna.widget = function (meta) {
+    return Sienna.widgetRegistry._declareWidget(meta);
+  };
+
+  /**
+   * A toolkit: several added widgets, given by one URL. Its script is one call:
+   *
+   *   Sienna.toolkit({
+   *     name: 'games', label: 'Games', notes: '…', author: '…', version: '1',
+   *     widgets: ['dice.js', 'https://example.org/w/clock.js',
+   *               { src: 'spinner.js', integrity: 'sha384-…' }],
+   *   });
+   *
+   * A relative URL is relative to the toolkit's own file, so a folder holding
+   * `toolkit.js` beside its widgets can be moved, or put online, as a whole.
+   */
+  Sienna.toolkit = function (meta) {
+    return Sienna.widgetRegistry._declareToolkit(meta);
   };
 })(window.Sienna);

@@ -653,3 +653,138 @@ html:not(.slx-embedding) body {
 .slx-colorpicker-value {
   font-size: 14px;
 }
+
+/* A widget that could not be loaded (workspace.addPanel). */
+.slx-missing-widget {
+  color: #6b2b2b;
+  font-size: 13px;
+}
+.slx-missing-widget p {
+  margin: 6px 0 0;
+}
+.slx-missing-src {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #666;
+  word-break: break-all;
+}
+
+/* The shell's small modal dialogs (added-widgets.js). */
+.slx-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10vh 16px 16px;
+  background: rgba(20, 24, 32, 0.35);
+}
+.slx-dialog {
+  width: min(520px, 100%);
+  max-height: 80vh;
+  overflow: auto;
+  background: #fff;
+  color: #222;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  padding: 18px 20px 14px;
+  font-size: 14px;
+}
+.slx-dialog-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+.slx-dialog-body p {
+  margin: 8px 0;
+}
+.slx-dialog-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.slx-dialog-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font: inherit;
+  border: 1px solid var(--slx-border);
+  border-radius: 4px;
+}
+.slx-dialog-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--slx-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.slx-dialog-hint {
+  color: #666;
+  font-size: 12px;
+}
+.slx-dialog-warning {
+  background: #fff6e0;
+  border-left: 3px solid #e0a020;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.slx-dialog-urls,
+.slx-dialog-problems {
+  margin: 6px 0;
+  padding-left: 20px;
+  font-size: 13px;
+  word-break: break-all;
+}
+.slx-dialog-problems {
+  color: #8a2020;
+}
+.slx-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.slx-dialog-btn {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 14px;
+  border: 1px solid var(--slx-border);
+  border-radius: 4px;
+  background: #f4f5f8;
+  cursor: pointer;
+}
+.slx-dialog-btn--primary {
+  background: var(--slx-accent);
+  border-color: var(--slx-accent);
+  color: #fff;
+}
+.slx-added-desc p {
+  margin: 2px 0 0;
+  color: #444;
+  font-size: 13px;
+}
+.slx-added-author {
+  color: #666;
+}
+.slx-added-group {
+  margin: 10px 0;
+}
+.slx-added-toolkit,
+.slx-added-widget {
+  border: 1px solid var(--slx-border);
+  border-radius: 5px;
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+.slx-added-group .slx-added-toolkit ~ .slx-added-widget {
+  margin-left: 18px;
+}
+.slx-added-src {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #666;
+  word-break: break-all;
+  margin: 4px 0;
+}
