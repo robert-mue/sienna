@@ -346,6 +346,13 @@
         + 'select the file instead. It is kept with your settings.').appendTo($b);
     }
     warning().appendTo($b);
+    if (!toolkit && Sienna.widgetBrief) {
+      var $own = $('<p class="slx-dialog-hint">').appendTo($b);
+      $own.append(document.createTextNode('Writing your own? '));
+      $('<button type="button" class="slx-dialog-link">').text('Get instructions for an AI assistant…')
+        .on('click', function () { d.close(); briefDialog(); })
+        .appendTo($own);
+    }
     var d = dialog(toolkit ? 'Add a toolkit' : 'Add a widget', $b, [
       { label: 'Cancel' },
       {
@@ -420,6 +427,48 @@
     dialog('Added widgets', $b);
   }
 
+  /**
+   * The brief for an AI assistant (`widget-brief.js`): shown, to copy into a
+   * chat or save as a file, with what to do with it.
+   */
+  function briefDialog() {
+    if (!Sienna.widgetBrief) return;
+    var text = Sienna.widgetBrief.text();
+    var $b = $('<div>');
+    $('<p>').text(
+      'To have an AI assistant (Claude, ChatGPT, …) write a widget: copy these instructions '
+      + 'into a new chat, then describe the widget you want. Save its answer as a .js file '
+      + 'and add it with Widgets ▸ Add a widget….').appendTo($b);
+    var $text = $('<textarea class="slx-dialog-brief" readonly spellcheck="false">').val(text).appendTo($b);
+    var $said = $('<p class="slx-dialog-hint">').appendTo($b);
+    function copy() {
+      var done = function () { $said.text('Copied. Paste it into the chat.'); };
+      var fallback = function () {
+        $text[0].select();
+        try { document.execCommand('copy'); done(); } catch (e) { $said.text('Select the text and copy it (Ctrl-C).'); }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else {
+        fallback();
+      }
+      return false;
+    }
+    function saveFile() {
+      var url = URL.createObjectURL(new Blob([text], { type: 'text/markdown' }));
+      var $a = $('<a>').attr({ href: url, download: 'widget-instructions.md' }).appendTo(document.body);
+      $a[0].click();
+      $a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      return false;
+    }
+    dialog('Instructions for an AI assistant', $b, [
+      { label: 'Save as file', onClick: saveFile },
+      { label: 'Copy', primary: true, onClick: copy },
+      { label: 'Close' },
+    ]);
+  }
+
   Sienna.addedWidgets = {
     /** What is remembered, as stored (copies). */
     list: function () { return JSON.parse(JSON.stringify(store.widgets)); },
@@ -436,6 +485,7 @@
     addDialog: function () { addDialog('widget'); },
     addToolkitDialog: function () { addDialog('toolkit'); },
     manageDialog: manageDialog,
+    briefDialog: briefDialog,
 
     /**
      * The end of an app's Widgets menu: the added widgets, then the commands.
@@ -455,7 +505,9 @@
         { label: 'Add a widget…', onSelect: function () { addDialog('widget'); } },
         { label: 'Add a toolkit…', onSelect: function () { addDialog('toolkit'); } },
         { label: 'Manage added widgets…', onSelect: manageDialog },
-      ]);
+      ], Sienna.widgetBrief ? [
+        { label: 'Instructions for an AI assistant…', onSelect: briefDialog },
+      ] : []);
     },
   };
 })(window.jQuery, window.Sienna);

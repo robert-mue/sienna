@@ -794,3 +794,15 @@ html:not(.slx-embedding) body {
 .slx-dialog-need .slx-dialog-btn {
   margin-bottom: 6px;
 }
+.slx-dialog-brief {
+  width: 100%;
+  box-sizing: border-box;
+  height: 300px;
+  font-family: ui-monospace, monospace;
+  font-size: 11.5px;
+  line-height: 1.4;
+  border: 1px solid var(--slx-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  resize: vertical;
+}
