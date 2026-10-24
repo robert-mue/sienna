@@ -664,8 +664,9 @@
     var $b = $('<div>');
     $('<p>').text(
       'To have an AI assistant (Claude, ChatGPT, …) write a widget: copy these instructions '
-      + 'into a new chat, then describe the widget you want. Save its answer as a .js file '
-      + 'and add it with Widgets ▸ Add a widget….').appendTo($b);
+      + 'into a new chat, then describe the widget you want. It should give you a file to '
+      + 'download (if it gives only code, save that as a .js file). Add the file with '
+      + 'Widgets ▸ Add a widget….').appendTo($b);
     var $text = $('<textarea class="slx-dialog-brief" readonly spellcheck="false">').val(text).appendTo($b);
     var $said = $('<p class="slx-dialog-hint">').appendTo($b);
     function copy() {
