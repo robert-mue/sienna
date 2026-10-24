@@ -530,9 +530,13 @@
 
   /** An error from anywhere: shown if it came from an added widget. */
   function reportError(err, filename, line) {
+    if (err && err.siennaReported) return true;   // shown already, on its way out
     var spec = widgetOfError(err, filename);
     if (!spec) return false;
     showError(spec, err, plainLine(filename, spec.src, line));
+    if (err && typeof err === 'object') {
+      try { Object.defineProperty(err, 'siennaReported', { value: true }); } catch (e) { /* frozen */ }
+    }
     return true;
   }
 
@@ -557,9 +561,7 @@
     try {
       return dispatch.apply(this, arguments);
     } catch (err) {
-      if (err && typeof err === 'object' && !err.siennaReported && reportError(err)) {
-        try { Object.defineProperty(err, 'siennaReported', { value: true }); } catch (e) { /* frozen */ }
-      }
+      if (err && typeof err === 'object') reportError(err);
       throw err;
     }
   };
