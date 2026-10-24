@@ -115,10 +115,14 @@
     '',
     '## If it goes wrong',
     '',
-    'If the user reports an error, ask for the exact message shown in the',
-    'panel, and give the complete corrected file again, not a fragment. To try',
-    'a changed file the user removes the old one (Widgets > Manage added',
-    'widgets...) and adds the new one, or uses Reload there if the app offers it.',
+    'An error in the widget is shown on its panel: a red bar for an error while',
+    'it runs, or a message in place of the widget if it failed as it started,',
+    'each with the file and line. If the user reports one, ask for that exact',
+    'text, and give the complete corrected file again, not a fragment. The user',
+    'tries a changed file with Reload (on the red bar, or in Widgets > Manage',
+    'added widgets...), which keeps the panels open. A file added by its path',
+    'that has a syntax error is reported without a line (the browser hides it);',
+    'selecting the file instead of typing its path shows the line.',
   ].join('\n');
 
   Sienna.widgetBrief = {

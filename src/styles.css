@@ -806,3 +806,30 @@ html:not(.slx-embedding) body {
   padding: 6px 8px;
   resize: vertical;
 }
+
+/* An error from an added widget, on its panel (added-widgets.js). */
+.slx-widget-error {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 5px 8px;
+  background: #fdecea;
+  color: #7a1f1f;
+  border-bottom: 1px solid #f0b8b0;
+  font-size: 12px;
+}
+.slx-widget-error-text {
+  flex: 1 1 200px;
+}
+.slx-widget-error-close {
+  border: 0;
+  background: none;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+.slx-missing-reload {
+  margin-top: 10px;
+}

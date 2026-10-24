@@ -21,10 +21,123 @@
   // { widgets: [meta…], toolkit: meta|null, problems: [text…] }.
   var declared = {};
 
+  /** A script URL without the cache-breaker a reload adds (see `fresh`). */
+  function plainSrc(src) {
+    return String(src || '').replace(/([?&])_sienna=\d+(&|$)/, function (m, pre, post) {
+      return post ? pre : '';
+    });
+  }
+
   /** The URL of the script running now, absolute ('' outside a script). */
   function runningScript() {
     var s = document.currentScript;
-    return (s && s.src) || '';
+    return plainSrc((s && s.src) || '');
+  }
+
+  /**
+   * `src` as a reload must ask for it: over http(s) the browser may answer
+   * from its cache, so a changed file would not be seen. A file:// or blob:
+   * URL is read afresh anyway.
+   */
+  function fresh(src) {
+    if (!/^https?:/i.test(src)) return src;
+    return src + (src.indexOf('?') >= 0 ? '&' : '?') + '_sienna=' + Date.now();
+  }
+
+  /**
+   * Where in its file an error happened, as a person would say it:
+   * 'dice.js line 12'. From the error event's own position if it has one,
+   * else from the first line of the stack that is in `src`.
+   */
+  function errorWhere(err, src, line) {
+    var file = String(src || '').split(/[?#]/)[0].split('/').pop();
+    if (/^blob:/.test(src)) file = 'the file';
+    if (!line && err && err.stack && src) {
+      var at = String(err.stack).split('\n').filter(function (l) {
+        return l.indexOf(plainSrc(src)) >= 0 || l.indexOf(src) >= 0;
+      })[0];
+      var m = at && /:(\d+):\d+\)?\s*$/.exec(at);
+      if (m) line = Number(m[1]);
+    }
+    return line ? file + ' line ' + line : file;
+  }
+
+  /**
+   * An added widget's methods, each passing on any error it throws to
+   * `Sienna.widgetRegistry.onWidgetError(err, name)` (then throwing it on, so
+   * nothing behaves differently). The browser hides the details of an error
+   * from a script on another site, or on file:// — the page's own error event
+   * says only "Script error." — but an error caught here, by the shell's code,
+   * keeps its message and stack. Reported once, however many methods it
+   * passes through.
+   */
+  function guarded(proto, name) {
+    var out = {};
+    Object.keys(proto).forEach(function (k) {
+      var v = proto[k];
+      if (typeof v !== 'function') { out[k] = v; return; }
+      out[k] = function () {
+        try {
+          return v.apply(this, arguments);
+        } catch (err) {
+          if (err && typeof err === 'object' && !err.siennaReported) {
+            try { Object.defineProperty(err, 'siennaReported', { value: true }); } catch (e) { /* frozen */ }
+            var hook = Sienna.widgetRegistry.onWidgetError;
+            if (hook) { try { hook(err, name); } catch (e) { /* never mask the real error */ } }
+          }
+          throw err;
+        }
+      };
+    });
+    return out;
+  }
+
+  /**
+   * Run a script by injecting a <script> tag, catching an error it throws
+   * while it runs — a syntax error, or a mistake in its top-level code —
+   * which the browser otherwise reports only in the devtools console.
+   * Resolves `{ error }` (null, or { message, where }) once it has run;
+   * rejects only if it could not be fetched.
+   */
+  function inject(src, integrity, reload) {
+    return new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      var asked = reload ? fresh(src) : src;
+      var error = null;
+      function onError(e) {
+        if (plainSrc(e.filename) === src) {
+          error = { message: (e.error && e.error.message) || e.message, where: errorWhere(e.error, src, e.lineno) };
+        } else if (!e.filename && !error && /^Script error\.?$/.test(e.message || '')) {
+          // The browser hides the details of an error in a script from a
+          // file:// path or another site (measured, Chrome 154); all it will
+          // say is that there was one, while this script ran.
+          error = {
+            message: 'The file stopped with an error (often a typing mistake), and the browser will not '
+              + 'say which, because it hides the details of errors in files loaded by their path or from '
+              + 'another site. To see them, select the file instead of giving its path, or open the '
+              + 'browser\'s console (F12)',
+            where: '',
+          };
+        }
+      }
+      window.addEventListener('error', onError);
+      script.src = asked;
+      if (integrity) {
+        // Subresource Integrity: a file that has changed since it was
+        // pinned is refused. Needs the server's CORS consent, hence this.
+        script.integrity = integrity;
+        script.crossOrigin = 'anonymous';
+      }
+      script.onload = function () {
+        window.removeEventListener('error', onError);
+        resolve({ error: error });
+      };
+      script.onerror = function () {
+        window.removeEventListener('error', onError);
+        reject(new Error('Could not load ' + src + ' (no such file, no network, or refused by the browser).'));
+      };
+      document.head.appendChild(script);
+    });
   }
 
   function declaredFor(src) {
@@ -161,33 +274,14 @@
       if (entry.promise) {
         return entry.promise;
       }
-      entry.promise = new Promise(function (resolve, reject) {
-        var script = document.createElement('script');
-        script.src = scriptUrl(entry.src);
-        if (entry.integrity) {
-          // Subresource Integrity: a file that has changed since it was
-          // pinned is refused. Needs the server's CORS consent, hence this.
-          script.integrity = entry.integrity;
-          script.crossOrigin = 'anonymous';
-        }
-        script.onload = function () {
-          if (entry.method) {
-            resolve(entry.method);
-          } else {
-            reject(
-              new Error(
-                'Widget "' +
-                  name +
-                  '" loaded but did not register a method name',
-              ),
-            );
-          }
-        };
-        script.onerror = function () {
-          entry.promise = null;
-          reject(new Error('Failed to load widget script: ' + scriptUrl(entry.src)));
-        };
-        document.head.appendChild(script);
+      entry.promise = inject(scriptUrl(entry.src), entry.integrity).then(function (r) {
+        if (entry.method) return entry.method;
+        entry.promise = null;
+        if (r.error) throw new Error(r.error.message + (r.error.where ? ' (' + r.error.where + ')' : '.'));
+        throw new Error('Widget "' + name + '" loaded but did not register a method name');
+      }, function (err) {
+        entry.promise = null;
+        throw err;
       });
       return entry.promise;
     },
@@ -201,28 +295,30 @@
      * @param {{ integrity?: string }} [opts]
      */
     loadScript: function (url, opts) {
+      opts = opts || {};
       var src = resolveAgainst(url);
       delete declared[src];
-      return new Promise(function (resolve, reject) {
-        var script = document.createElement('script');
-        script.src = src;
-        if (opts && opts.integrity) {
-          script.integrity = opts.integrity;
-          script.crossOrigin = 'anonymous';
+      return inject(src, opts.integrity, opts.reload).then(function (r) {
+        var d = declaredFor(src);
+        if (r.error) d.problems.push(r.error.message + (r.error.where ? ' (' + r.error.where + ')' : '.'));
+        if (!d.widgets.length && !d.toolkit && !d.problems.length) {
+          d.problems.push('It ran, but declared neither a widget (Sienna.widget) nor a toolkit (Sienna.toolkit).');
         }
-        script.onload = function () {
-          var d = declaredFor(src);
-          if (!d.widgets.length && !d.toolkit && !d.problems.length) {
-            d.problems.push('It ran, but declared neither a widget (Sienna.widget) nor a toolkit (Sienna.toolkit).');
-          }
-          resolve({ widgets: d.widgets.slice(), toolkit: d.toolkit, problems: d.problems.slice() });
-        };
-        script.onerror = function () {
-          reject(new Error('Could not load ' + url + ' (no such file, no network, or refused by the browser).'));
-        };
-        document.head.appendChild(script);
+        return { widgets: d.widgets.slice(), toolkit: d.toolkit, problems: d.problems.slice() };
       });
     },
+
+    /**
+     * Allow the next declaration of `name` to replace it, from `src` — a
+     * RELOAD of an added widget, whose file has changed (and, for a selected
+     * file, whose blob URL is new). Cleared once it is declared.
+     */
+    _allowReplace: function (name, src) {
+      if (registry[name] && registry[name].external) registry[name].replaceFrom = src;
+    },
+
+    /** Where in its file an error happened ('dice.js line 12'). */
+    errorWhere: errorWhere,
 
     /** See `Sienna.widget`. */
     _declareWidget: function (meta) {
@@ -241,9 +337,12 @@
         return false;
       }
       var mine = registry[name];
+      // The same file again (a reload, or added a second time), or a reload
+      // asked for by `_allowReplace`: this replaces the definition.
+      var again = !!(mine && mine.external && (mine.src === src || mine.replaceFrom === src));
       // Never replace a built-in widget, another added widget, or anything
       // jQuery already answers to: `$.widget` would overwrite it silently.
-      if (mine && !(mine.external && mine.src === src)) {
+      if (mine && !again) {
         d.problems.push(mine && mine.external
           ? '"' + (mine.label || name) + '" has already been added; to replace it, remove it first (Widgets ▸ Manage added widgets…).'
           : 'The app already has a widget called "' + name + '"; this one was not added.');
@@ -257,7 +356,9 @@
         d.problems.push('"' + name + '" has no `widget` (the widget\'s own methods).');
         return false;
       }
-      if (!$.sienna[name]) $.widget('sienna.' + name, meta.base || $.sienna.widgetBase, meta.widget);
+      // Defined afresh each time the file runs, so a reload takes the edited
+      // methods; panels already open keep the old ones until re-created.
+      $.widget('sienna.' + name, meta.base || $.sienna.widgetBase, guarded(meta.widget, name));
       var spec = {
         src: src, label: meta.label, title: meta.title, options: meta.options,
         thumbnail: meta.thumbnail, workingSize: meta.workingSize, role: meta.role,
@@ -265,8 +366,15 @@
       };
       if (mine) {
         // Already known (remembered from an earlier visit, now being loaded
-        // for use): keep the entry, so a `loadWidget` waiting on it resolves.
+        // for use; or reloaded): keep the entry, so a `loadWidget` waiting on
+        // it resolves, and take the file's metadata as it is now.
         mine.method = name;
+        mine.src = src;
+        delete mine.replaceFrom;
+        ['label', 'title', 'notes', 'author', 'version', 'role', 'thumbnail', 'workingSize', 'options']
+          .forEach(function (k) { if (meta[k] !== undefined) mine[k] = meta[k]; });
+        if (meta.label && !meta.title) mine.title = meta.label;
+        spec.replaced = true;
       } else {
         this.register(name, spec);
         registry[name].method = name;

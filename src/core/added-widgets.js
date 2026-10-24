@@ -153,10 +153,17 @@
   /** Say what happened: what was added, and every problem met on the way. */
   function report(added, problems) {
     var $b = $('<div>');
-    if (added.length) {
-      $('<p>').text(added.length === 1 ? 'Added to the Widgets menu:' : 'Added to the Widgets menu (' + added.length + '):').appendTo($b);
-      added.forEach(function (w) { describe(w).appendTo($b); });
-    } else {
+    var fresh = added.filter(function (w) { return !w.replaced; });
+    var again = added.filter(function (w) { return w.replaced; });
+    if (fresh.length) {
+      $('<p>').text(fresh.length === 1 ? 'Added to the Widgets menu:' : 'Added to the Widgets menu (' + fresh.length + '):').appendTo($b);
+      fresh.forEach(function (w) { describe(w).appendTo($b); });
+    }
+    if (again.length) {
+      $('<p>').text('Already added, so reloaded from the same place (open panels re-made):').appendTo($b);
+      again.forEach(function (w) { describe(w).appendTo($b); });
+    }
+    if (!added.length) {
       $('<p>').text('Nothing was added.').appendTo($b);
     }
     if (problems.length) {
@@ -257,6 +264,7 @@
       result.widgets.forEach(function (spec) {
         remember(spec, extra);
         added.push(spec);
+        if (spec.replaced) rebuildPanels(spec.name);
       });
     }
 
@@ -375,6 +383,217 @@
     });
   }
 
+  // ------------------------------------------------- reload, and errors
+
+  /** Every panel, at any depth, hosting widget `name`, with its workspace. */
+  function panelsOf(name) {
+    var out = [];
+    $('.slx-panel').each(function () {
+      var $p = $(this);
+      var $ws = $p.parent();
+      if (!$ws.data('sienna-workspace')) return;
+      if ($ws.workspace('widgetOf', $p) === name) out.push({ $panel: $p, $ws: $ws });
+    });
+    return out;
+  }
+
+  /** Re-make every open panel of `name` with its definition as it is now. */
+  function rebuildPanels(name) {
+    clearErrors(name);
+    return Promise.all(panelsOf(name).map(function (o) {
+      return o.$ws.workspace('rebuildWidget', o.$panel);
+    }));
+  }
+
+  /**
+   * Run an added widget's file again — after its author has edited it — and
+   * re-make its open panels. A widget from a URL is read again from there; a
+   * selected file has to be selected again, since a page cannot re-read a
+   * file by itself. Resolves to what happened ({ ok, problems }).
+   */
+  function reload(name) {
+    var w = store.widgets.filter(function (o) { return o.name === name; })[0];
+    if (!w) return Promise.resolve({ ok: false, problems: ['"' + name + '" is not an added widget.'] });
+    var extra = { integrity: w.integrity, toolkit: w.toolkit };
+    var run;
+    if (w.file) {
+      run = selectFile(w.file.name).then(function (f) {
+        if (!f) return null;
+        extra.file = { name: f.name, text: f.text };
+        reg._allowReplace(name, f.url);
+        return runOne(f.url);
+      });
+    } else {
+      run = reg.loadScript(w.src, { reload: true, integrity: w.integrity }).catch(function (err) {
+        return { widgets: [], toolkit: null, problems: [err.message] };
+      });
+    }
+    return run.then(function (r) {
+      if (!r) return { ok: false, cancelled: true, problems: [] };
+      var mine = r.widgets.filter(function (spec) { return spec.name === name; });
+      r.widgets.forEach(function (spec) { remember(spec, extra); });
+      save();
+      if (!mine.length) {
+        var problems = r.problems.slice();
+        if (!problems.length) problems.push('The file no longer declares a widget called "' + name + '".');
+        return { ok: false, problems: problems };
+      }
+      return rebuildPanels(name).then(function () { return { ok: true, problems: r.problems }; });
+    });
+  }
+
+  /** Ask for a file (on a click: a page may open a file picker only then). */
+  function selectFile(expected) {
+    return new Promise(function (resolve) {
+      var $file = $('<input type="file" accept=".js,text/javascript" hidden>').appendTo(document.body);
+      $file.on('change', function () {
+        var f = this.files && this.files[0];
+        $file.remove();
+        if (!f) { resolve(null); return; }
+        f.text().then(function (text) {
+          resolve({ name: f.name, text: text, url: blobUrl(text) });
+        });
+      });
+      // No 'cancel' event everywhere: a picker closed without a file simply
+      // never resolves, which leaves nothing waiting that matters.
+      $file.trigger('click');
+    });
+  }
+
+  /** Reload from a button: say what went wrong, if anything did. */
+  function reloadAndSay(name, $say) {
+    return reload(name).then(function (r) {
+      if (r.cancelled) return r;
+      if ($say) $say.text(r.ok ? 'Reloaded.' : 'Not reloaded.');
+      if (!r.ok || r.problems.length) {
+        var $b = $('<div>');
+        $('<p>').text(r.ok ? 'Reloaded, with these problems:' : 'It was not reloaded:').appendTo($b);
+        var $ul = $('<ul class="slx-dialog-problems">').appendTo($b);
+        r.problems.forEach(function (p) { $('<li>').text(p).appendTo($ul); });
+        dialog('Reload', $b);
+      }
+      return r;
+    });
+  }
+
+  /** Which added widget an error came from: its file in the event or the stack. */
+  function widgetOfError(err, filename) {
+    var stack = String((err && err.stack) || '');
+    var names = reg.names();
+    for (var i = 0; i < names.length; i++) {
+      var spec = reg.spec(names[i]);
+      if (!spec || !spec.external || !spec.src) continue;
+      var plain = spec.src;
+      if ((filename && String(filename).indexOf(plain) === 0) || stack.indexOf(plain) >= 0) return spec;
+    }
+    return null;
+  }
+
+  function clearErrors(name) {
+    $('.slx-widget-error').filter(function () { return $(this).attr('data-widget') === name; }).remove();
+  }
+
+  /**
+   * Show an error from an added widget ON its panels, where its author is
+   * looking — not only in the devtools console, which most never open. One
+   * bar per panel, counting repeats, with Reload and dismiss.
+   */
+  function showError(spec, err, line) {
+    var where = reg.errorWhere(err, spec.src, line);
+    var text = (err && err.message ? err.message : String(err)) + (/line/.test(where) ? ' (' + where + ')' : '');
+    panelsOf(spec.name).forEach(function (o) {
+      var $content = o.$panel.panel('content');
+      var $bar = o.$panel.children('.slx-widget-error').filter(function () {
+        return $(this).attr('data-widget') === spec.name;
+      });
+      if (!$bar.length) {
+        $bar = $('<div class="slx-widget-error" role="alert">').attr('data-widget', spec.name);
+        $('<span class="slx-widget-error-text">').appendTo($bar);
+        $('<span class="slx-widget-error-count">').appendTo($bar);
+        var $say = $('<span class="slx-widget-error-count">');
+        $('<button type="button" class="slx-dialog-link">').text('Reload').on('click', function () {
+          reloadAndSay(spec.name, $say);
+        }).appendTo($bar);
+        $say.appendTo($bar);
+        $('<button type="button" class="slx-widget-error-close" title="Dismiss">').text('×').on('click', function () {
+          $bar.remove();
+        }).appendTo($bar);
+        $content.before($bar);
+        $bar.data('n', 0);
+      }
+      var n = $bar.data('n') + 1;
+      $bar.data('n', n);
+      $bar.find('.slx-widget-error-text').text('Error in ' + (spec.label || spec.name) + ': ' + text);
+      $bar.find('.slx-widget-error-count').first().text(n > 1 ? ' (×' + n + ')' : '');
+    });
+  }
+
+  /** An error from anywhere: shown if it came from an added widget. */
+  function reportError(err, filename, line) {
+    var spec = widgetOfError(err, filename);
+    if (!spec) return false;
+    showError(spec, err, plainLine(filename, spec.src, line));
+    return true;
+  }
+
+  // The line number an error event gives is only about OUR file when the
+  // event's file is it.
+  function plainLine(filename, src, line) {
+    return filename && String(filename).indexOf(src) === 0 ? line : 0;
+  }
+
+  // Errors thrown in an added widget's own methods (see `guarded` in
+  // widget-registry.js), named for us.
+  reg.onWidgetError = function (err, name) {
+    var spec = reg.spec(name);
+    if (spec && spec.external) showError(spec, err, 0);
+  };
+
+  // Errors in a handler a widget gave jQuery (a click on its button): they
+  // pass through jQuery's dispatch, which is the page's own code, so they can
+  // be caught there with their details, which the error event would hide.
+  var dispatch = $.event.dispatch;
+  $.event.dispatch = function () {
+    try {
+      return dispatch.apply(this, arguments);
+    } catch (err) {
+      if (err && typeof err === 'object' && !err.siennaReported && reportError(err)) {
+        try { Object.defineProperty(err, 'siennaReported', { value: true }); } catch (e) { /* frozen */ }
+      }
+      throw err;
+    }
+  };
+
+  // Anything else that reaches the window with its details (a widget served
+  // with CORS consent, or from the app's own origin). "Script error." alone
+  // names nothing, and is left to the console.
+  window.addEventListener('error', function (e) {
+    if (!e.error || e.error.siennaReported) return;
+    reportError(e.error, e.filename, e.lineno);
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    if (e.reason && e.reason.siennaReported) return;
+    if (e.reason instanceof Error) reportError(e.reason);
+  });
+
+  // A panel whose added widget would not start: offer the Reload there.
+  $(document).on('slxwidgetfailed', function (e, name) {
+    var spec = reg.spec(name);
+    if (!spec || !spec.external) return;
+    // The placeholder already says what went wrong; no bar as well.
+    $(e.target).closest('.slx-panel').children('.slx-widget-error').filter(function () {
+      return $(this).attr('data-widget') === name;
+    }).remove();
+    var $m = $(e.target).find('.slx-missing-widget').last();
+    if (!$m.length || $m.find('.slx-missing-reload').length) return;
+    var $say = $('<span class="slx-dialog-hint">');
+    $('<p class="slx-missing-reload">')
+      .append($('<button type="button" class="slx-dialog-btn">').text('Reload ' + (spec.label || name))
+        .on('click', function () { reloadAndSay(name, $say); }))
+      .append(' ').append($say)
+      .appendTo($m);
+  });
+
   function remove(name) {
     store.widgets = store.widgets.filter(function (w) { return w.name !== name; });
     var spec = reg.spec(name);
@@ -415,10 +634,16 @@
           var $w = $('<div class="slx-added-widget">').appendTo($g);
           describe(w).appendTo($w);
           $('<div class="slx-added-src">').text(w.src || (w.file && w.file.name + ' (selected file, kept with your settings)') || '').appendTo($w);
+          var $say = $('<span class="slx-dialog-hint">');
+          $('<button type="button" class="slx-dialog-btn">').text(w.file ? 'Reload (select the file again)…' : 'Reload')
+            .on('click', function () { reloadAndSay(w.name, $say); })
+            .appendTo($w);
+          $w.append(' ');
           $('<button type="button" class="slx-dialog-btn">').text('Remove').on('click', function () {
             remove(w.name);
             draw();
           }).appendTo($w);
+          $w.append(' ').append($say);
         });
       });
       $('<p class="slx-dialog-hint">').text('A removed widget\'s open panels keep working until the app is next opened.').appendTo($b);
@@ -486,6 +711,17 @@
     addToolkitDialog: function () { addDialog('toolkit'); },
     manageDialog: manageDialog,
     briefDialog: briefDialog,
+
+    /** Run an added widget's file again and re-make its panels (an author's edit). */
+    reload: reload,
+
+    /**
+     * Show an error on the panels of the added widget it came from, if it
+     * came from one (judged by its stack). For an app that catches errors in
+     * code a widget gave it — a listener, a callback — so that they are not
+     * left in the console. Returns whether it was an added widget's.
+     */
+    reportError: function (err) { return reportError(err); },
 
     /**
      * The end of an app's Widgets menu: the added widgets, then the commands.

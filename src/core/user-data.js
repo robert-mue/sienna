@@ -86,7 +86,9 @@
         try {
           subs[i].fn(change);
         } catch (e) {
-          /* a bad subscriber must not break the mutation */
+          // A bad subscriber must not break the mutation. If it is an added
+          // widget's, say so on its panel (added-widgets.js).
+          if (Sienna.addedWidgets) Sienna.addedWidgets.reportError(e);
         }
       }
     }

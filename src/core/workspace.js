@@ -280,34 +280,7 @@ $.widget('sienna.workspace', {
     if (!this._suspend) this._active = panelId;
     this._arrange();
 
-    if (widget) {
-      let method = null;
-      try {
-        method = await Sienna.widgetRegistry.loadWidget(widget);
-      } catch (err) {
-        // A widget that cannot be had — one the user added whose file has
-        // gone, or one this app has never heard of (a session from elsewhere)
-        // — leaves a panel saying so rather than an empty box. The entry
-        // stays, so the panel is still saved, and comes back working once the
-        // widget can be loaded again.
-        const spec = Sienna.widgetRegistry.spec(widget);
-        $('<div class="slx-missing-widget">')
-          .append($('<strong>').text('This widget could not be loaded.'))
-          .append($('<p>').text(err && err.message ? err.message : String(err)))
-          .append(spec && spec.src ? $('<p class="slx-missing-src">').text(spec.src) : null)
-          .appendTo($panel.panel('content'));
-      }
-      if (method) {
-        entry.method = method;
-        const inst = $panel.panel('content')[method]({ ...options })[method]('instance');
-        // A widget with more to build after its constructor — a container
-        // restoring its children — says so with a `ready` promise, and the panel
-        // is not open until it settles.
-        if (inst && inst.ready && typeof inst.ready.then === 'function') {
-          await inst.ready;
-        }
-      }
-    }
+    if (widget) await this._build(entry, options);
 
     if (minimized) $panel.panel('minimize', true);
     if (maximized) $panel.panel('maximize', true);
@@ -323,6 +296,79 @@ $.widget('sienna.workspace', {
     });
     this._emitChange();
     return $panel;
+  },
+
+  /**
+   * Load a panel's widget and create it in the panel. A widget that cannot be
+   * had — one the user added whose file has gone, or one this app has never
+   * heard of (a session from elsewhere) — or that fails as it starts, leaves
+   * the panel saying so rather than an empty box, with the error and where
+   * in its file it happened. The entry stays, so the panel is still saved,
+   * and works again once the widget does.
+   */
+  async _build(entry, options) {
+    const $panel = entry.$panel;
+    const $content = $panel.panel('content');
+    const widget = entry.widget;
+    let method = null;
+    try {
+      method = await Sienna.widgetRegistry.loadWidget(widget);
+    } catch (err) {
+      this._missing($content, widget, 'This widget could not be loaded.', err);
+      return;
+    }
+    let inst = null;
+    try {
+      inst = $content[method]({ ...options })[method]('instance');
+    } catch (err) {
+      // Whatever it built before failing is no use; say what went wrong.
+      try { $content[method]('destroy'); } catch (e) { /* half-made */ }
+      $content.empty();
+      this._missing($content, widget, 'This widget failed as it started.', err);
+      return;
+    }
+    entry.method = method;
+    // A widget with more to build after its constructor — a container
+    // restoring its children — says so with a `ready` promise, and the panel
+    // is not open until it settles.
+    if (inst && inst.ready && typeof inst.ready.then === 'function') {
+      await inst.ready;
+    }
+  },
+
+  _missing($content, widget, heading, err) {
+    const spec = Sienna.widgetRegistry.spec(widget);
+    const where = spec && spec.src && err && err.stack ? Sienna.widgetRegistry.errorWhere(err, spec.src) : '';
+    const said = (err && err.message ? err.message : String(err)) + (where && /line/.test(where) ? ' (' + where + ')' : '');
+    $('<div class="slx-missing-widget">')
+      .attr('data-widget', widget)
+      .append($('<strong>').text(heading))
+      .append($('<p>').text(said))
+      .append(spec && spec.src ? $('<p class="slx-missing-src">').text(/^blob:/.test(spec.src) ? 'a selected file' : spec.src) : null)
+      .appendTo($content);
+    $content.trigger('slxwidgetfailed', [widget]);
+  },
+
+  /**
+   * Make a panel's widget again, with the definition as it is now — after
+   * an added widget is reloaded. Its view state (`state()`) is carried over.
+   */
+  async rebuildWidget($panel) {
+    const entry = this._entries.find((e) => e.$panel[0] === $panel[0]);
+    if (!entry || !entry.widget) return;
+    const $content = $panel.panel('content');
+    let options = { ...entry.options };
+    if (entry.method) {
+      try {
+        const inst = $content[entry.method]('instance');
+        if (inst && typeof inst.state === 'function') options = { ...options, ...inst.state() };
+        $content[entry.method]('destroy');
+      } catch (e) { /* the old one is broken; it is being replaced */ }
+    }
+    $content.empty();
+    entry.method = null;
+    await this._build(entry, options);
+    this._emitChange();
   },
 
   /** @returns {JQuery[]} currently open panels */
