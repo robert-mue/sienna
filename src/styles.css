@@ -833,3 +833,40 @@ html:not(.slx-embedding) body {
 .slx-missing-reload {
   margin-top: 10px;
 }
+
+/* This app is open in another tab, which is the one that saves (persistence.js). */
+.slx-elsewhere {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(30, 35, 48, 0.55);
+}
+.slx-elsewhere-card {
+  max-width: 420px;
+  padding: 18px 22px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #222222;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.slx-elsewhere-head {
+  margin-top: 0;
+  font-weight: 600;
+  font-size: 15px;
+}
+.slx-elsewhere-use {
+  padding: 6px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.slx-elsewhere-note {
+  margin-bottom: 0;
+  font-size: 12px;
+  color: #555555;
+}
