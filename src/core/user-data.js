@@ -12,6 +12,10 @@
  *      under `sienna.userData.v1` — separate from the workspace/session slot,
  *   3. emits a change `{ type, ref, value, prior }` to matching subscribers.
  *
+ * `announce(ref, message)` / `hear(refPrefix, fn)` are the other half: what
+ * is IN PROGRESS (a drag before its drop), told to other views and nothing
+ * else — not stored, saved, logged or undone.
+ *
  * `subscribe(refPrefix, fn)` is the substrate a future pub/sub layer will use:
  * a change notifies a subscriber when the change path and the watched path lie
  * on the same root-to-node line (either contains the other), so watching
@@ -33,6 +37,7 @@
 
   var data = {}; // the whole store
   var subs = []; // [{ prefix, fn }]
+  var hearers = []; // [{ prefix, fn }] — announcements (`announce`), never stored
   var batching = 0; // >0 while inside batch(): defer the localStorage write
   var batchDirty = false;
 
@@ -218,6 +223,45 @@
       return function () {
         var i = subs.indexOf(entry);
         if (i >= 0) subs.splice(i, 1);
+      };
+    },
+
+    // ---- announcements: what is IN PROGRESS, not what changed ----
+
+    /**
+     * Tell whoever is listening at `ref` about something in progress that is
+     * not (yet) a change: a drag before its drop. Nothing is stored, saved,
+     * logged or undone, so it costs only what the listeners do with it — the
+     * change itself is still made once, when the gesture ends, and heard by
+     * `subscribe` as any change is. Listeners at, above or below `ref` hear
+     * it, as for `subscribe`.
+     * @param {string} ref path the message is about (e.g. a model's)
+     * @param {*} message plain data; the listener's to interpret
+     * @param {*} [from] who is announcing, so it can leave out its own
+     */
+    announce: function (ref, message, from) {
+      var r = norm(ref);
+      hearers.slice().forEach(function (h) {
+        if (!onSameLine(r, h.prefix)) return;
+        try {
+          h.fn(message, { ref: r, from: from });
+        } catch (e) {
+          if (Sienna.addedWidgets) Sienna.addedWidgets.reportError(e);
+        }
+      });
+    },
+
+    /**
+     * Hear announcements (`announce`) at, above or below `refPrefix`.
+     * @param {(message, info: {ref, from}) => void} fn
+     * @returns {() => void} stop hearing
+     */
+    hear: function (refPrefix, fn) {
+      var entry = { prefix: norm(refPrefix), fn: fn };
+      hearers.push(entry);
+      return function () {
+        var i = hearers.indexOf(entry);
+        if (i >= 0) hearers.splice(i, 1);
       };
     },
 

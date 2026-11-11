@@ -130,6 +130,38 @@
     },
 
     /**
+     * Announce something in progress about this widget's subject — a drag
+     * before its drop — to other views of it (`userData.announce`): never
+     * stored, logged or undone. Nothing when unbound.
+     */
+    _announce: function (message) {
+      var ref = this._ref();
+      if (ref && Sienna.userData && Sienna.userData.announce) Sienna.userData.announce(ref, message, this);
+    },
+
+    /**
+     * Hear what OTHER views of this widget's subject announce (`_announce`);
+     * its own announcements are left out. Stops by itself when the widget's
+     * element leaves the document, as `_watchModel` does.
+     * @param {(message, info: {ref, from}) => void} handler
+     * @returns {() => void} stop hearing
+     */
+    _hearAnnouncements: function (handler) {
+      var self = this;
+      var ref = this._ref();
+      if (!ref || !Sienna.userData || !Sienna.userData.hear) return function () {};
+      var stop = Sienna.userData.hear(ref, function (message, info) {
+        if (!self.element || !self.element[0] || !self.element[0].isConnected) {
+          stop();
+          return;
+        }
+        if (info.from === self) return;
+        handler.call(self, message, info);
+      });
+      return stop;
+    },
+
+    /**
      * Be told when the host panel changes size, and whether it is now small
      * enough to be a thumbnail: `handler({ thumbnail })`.
      *
