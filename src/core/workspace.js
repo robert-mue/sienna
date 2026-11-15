@@ -311,11 +311,21 @@ $.widget('sienna.workspace', {
     const $content = $panel.panel('content');
     const widget = entry.widget;
     let method = null;
+    // While its script comes, the panel says so rather than stand empty:
+    // over a slow connection, or with the page busy, that can take a while.
+    const spec = Sienna.widgetRegistry.spec(widget) || {};
+    const name = spec.label || spec.title || widget;
+    const $loading = $('<div class="slx-widget-loading">');
+    const shown = setTimeout(() => $loading.text('Loading ' + name + '…').appendTo($content), 300);
+    const slow = setTimeout(() => $loading.text('Still loading ' + name
+      + '… (a slow connection, or the page busy with other work)'), 20000);
     try {
       method = await Sienna.widgetRegistry.loadWidget(widget);
     } catch (err) {
       this._missing($content, widget, 'This widget could not be loaded.', err);
       return;
+    } finally {
+      clearTimeout(shown); clearTimeout(slow); $loading.remove();
     }
     let inst = null;
     try {

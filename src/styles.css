@@ -654,6 +654,13 @@ html:not(.slx-embedding) body {
   font-size: 14px;
 }
 
+/* A widget whose script is still coming (workspace._build). */
+.slx-widget-loading {
+  color: #52514e;
+  font-size: 13px;
+  padding: 8px;
+}
+
 /* A widget that could not be loaded (workspace.addPanel). */
 .slx-missing-widget {
   color: #6b2b2b;
