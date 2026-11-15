@@ -333,9 +333,15 @@
         // from a thumbnail — one answer to "how big should this be?", not two.
         cfg.workingSize = { width: config.geometry.width, height: config.geometry.height };
       }
-      app.addPanel(cfg);
+      var opened = app.addPanel(cfg);
       touchRecent(docPath);
       this.setCurrent(docPath);
+      // The app may want to do something once a document is open — and only
+      // then, not when its panels come back with a session or a layout:
+      // `opened(path, app)`, after its panels (and collections) are made.
+      return Promise.resolve(opened).then(function () {
+        if (typeof config.opened === 'function') config.opened(docPath, app);
+      });
     },
 
     /**
