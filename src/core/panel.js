@@ -497,9 +497,9 @@ $.widget('sienna.panel', {
    * something.
    *
    * A panel INSIDE another is light grey with dark text, unless it is the outermost panel
-   * showing its subject: the colour belongs to the window, and repeating it on
-   * every panel within made those look like windows too. So the diagram in a
-   * model's window is grey, while a model's collection inside an unbound area
+   * showing its subject: the colour belongs to the top-level panel, and
+   * repeating it on every panel within made those look like top-level ones
+   * too. So the diagram in a model's Model panel is grey, while a model's collection inside an unbound area
    * keeps the model's colour — it is where that colour is first shown.
    */
   _applyAccent() {

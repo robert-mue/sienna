@@ -431,8 +431,8 @@ The mechanism:
   it happened to arrive. When the collection made for a request already holds
   a panel of the widget asked for, that panel IS the answer and no second one
   is opened.
-- **Windows, for the novice** (*2026-10-12*). Robert's considered default for
-  Simile is its own: a model window and a simulation window, floating, each
+- **Floating panels, for the novice** (*2026-10-12*). Robert's considered default for
+  Simile is its own: a Model panel and a Simulation panel, floating, each
   over half the screen wide — templates on the TOP-LEVEL workspace. Three
   small additions make that work: a template marked `openWithDocument` is made
   alongside whichever collection a document first needs (opening a model
@@ -456,18 +456,20 @@ webAKT "knowledge base".
 In a Simulation collection it belongs to that collection's model instead, by
 `ref`.
 
-### 19.2 Windows and panels — the words
+### 19.2 Panels — the words
 
-*Agreed 2026-10-12.* To a user, a **window** is a collection at the top level
-— a model window, a simulation window — and a **panel** is what holds one
-widget. A collection inside a window (Displays) is, to the user, part of the
-window. The code keeps its own words — every one of these is a `panel`, and a
-collection is a `container` — so this is vocabulary for menus and help, not a
-rename: View ▸ **Windows** lists the top-level panels to bring one to the
+*Agreed 2026-10-12; revised 2026-11-15 (Robert: the word is panel, never
+window).* To a user, everything the workspace shows is a **panel**: the
+top-level ones — a model's Model panel, its Simulation panel — and the
+panels inside them. A collection inside a top-level panel (Displays) is, to
+the user, part of it. The code keeps its own words — every one of these is a
+`panel`, a collection is a `container`, and the top-level ones are still
+`App.windows()` for history — so this is vocabulary for menus and help, not
+a rename: View ▸ **Panels** lists the top-level panels to bring one to the
 front (`App.windows()`, `windowItems()`, `showWindow()`), and an app's
-**Arrange windows** commands lay chosen ones side by side
-(`App.sideBySide(list)`). A document's **primary** collection (Simile's model
-window, template flag `primary`) closing closes the document's other
+**Arrange panels** commands lay chosen ones side by side
+(`App.sideBySide(list)`). A document's **primary** collection (Simile's
+Model panel, template flag `primary`) closing closes the document's other
 collections: a model closed is closed. Workspaces announce a close with
 `slxpanelclose` on their element, which bubbles to the app from any depth.
 

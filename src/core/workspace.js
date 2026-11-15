@@ -569,7 +569,7 @@ $.widget('sienna.workspace', {
       const inst = $ws.workspace('instance');
       if (!inst) break;
       inst._raise($p);
-      // Brought forward by a command (View ▸ Windows, Arrange windows) is
+      // Brought forward by a command (View ▸ Panels, Arrange panels) is
       // brought forward all the same: say so, as a press does, or the window
       // in front is not the one File ▸ Save acts on. Once, from the panel's
       // own workspace — a container passes it outward.

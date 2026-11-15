@@ -326,15 +326,15 @@
   }
 
   /**
-   * @returns {JQuery[]} the WINDOWS — the panels at the top level of the
-   *   workspace, which is what a user means by a window (a model window, a
-   *   simulation window); what is inside one is a panel.
+   * @returns {JQuery[]} the panels at the top level of the workspace (a
+   *   model's Model panel, its Simulation panel), what View ▸ Panels lists.
+   *   Named `windows` for history; to the user they are panels.
    */
   App.prototype.windows = function () {
     return this.$workspace.workspace('panels');
   };
 
-  /** Bring a window, or any panel, into view and to the front. */
+  /** Bring a top-level panel, or any panel, into view and to the front. */
   App.prototype.showWindow = function ($panel) {
     if ($panel.panel('minimized')) $panel.panel('minimize', false);
     this.$workspace.workspace('reveal', $panel);
@@ -342,15 +342,15 @@
   };
 
   /**
-   * Menu items, one per open window, each bringing it to the front — for a
-   * View ▸ Windows submenu. Pass the method itself as the submenu's `items`
+   * Menu items, one per open top-level panel, each bringing it to the front —
+   * for a View ▸ Panels submenu. Pass the method itself as the submenu's `items`
    * (`function () { return app.windowItems(); }`) and it stays current: the
-   * menu is re-drawn whenever the set of windows changes.
+   * menu is re-drawn whenever the set of panels changes.
    */
   App.prototype.windowItems = function () {
     var self = this;
     var list = this.windows();
-    if (!list.length) return [{ label: '(no windows open)' }];
+    if (!list.length) return [{ label: '(no panels open)' }];
     return list.map(function ($p) {
       return { label: $p.panel('title'), onSelect: function () { self.showWindow($p); } };
     });

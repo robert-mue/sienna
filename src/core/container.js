@@ -54,7 +54,7 @@ $.widget('sienna.container', {
     /**
      * A document's PRIMARY collection (its Model window): closing it closes
      * the document's other collections too — a model closed is closed, not
-     * left with its simulation window behind. See `App`.
+     * left with its Simulation panel behind. See `App`.
      */
     primary: false,
   },
