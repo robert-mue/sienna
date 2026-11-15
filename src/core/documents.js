@@ -415,6 +415,15 @@
             });
           },
         },
+        // The conventional handful you were last working on, newest first,
+        // where every application puts it: under Open.
+        {
+          label: 'Recent ' + plural(),
+          items: function () {
+            var recent = self.recent();
+            return recent.length ? recent.map(openItem) : [{ label: '(nothing opened yet)' }];
+          },
+        },
         // Save writes straight back to the file the document came from, asking
         // for one the first time. On a browser with no File System Access API
         // there is no such file, so it degrades to Save as — both entries then
@@ -496,36 +505,34 @@
         extra.forEach(function (it) { items.push(it); });
       }
 
-      // Two lists, and they are NOT the same list shortened. `Recent` is the
-      // conventional handful you were last working on, in the order you last
-      // touched them. The plural (`Models`) is every stored document — needed
+      // EVERY stored document, A-Z, with the current one marked: needed
       // because the store is the only copy there is, so a document must never
-      // become unreachable just by being old — with the current one marked.
-      // Choosing from either opens a document, or brings it forward if it is
-      // open, and makes it current. (There used to be a separate "Current
-      // model" list doing only the last of those; the menu bar now says which
-      // is current, and choosing is how you change it.)
-      var docs = this.list();
-      if (docs.length) {
+      // become unreachable just by being old. Not the same list as Recent
+      // shortened. Called "Your <plural>", as against anything an app offers
+      // that is not yet the user's (simile's Sample models). Choosing from
+      // either list opens a document, or brings it forward if it is open, and
+      // makes it current.
+      items.push({ separator: true });
+      items.push({
+        label: 'Your ' + plural(),
+        items: function () {
+          var docs = self.list();
+          var cur = self.current(app);
+          return docs.length
+            ? byName(docs).map(function (doc) {
+              var item = openItem(doc);
+              item.label = (doc.path === cur ? '• ' : '\u2007 ') + doc.name;
+              return item;
+            })
+            : [{ label: '(none yet)' }];
+        },
+      });
+
+      // Whatever the app puts at the very bottom (simile: Sample models…).
+      var last = typeof config.trailingItems === 'function' ? config.trailingItems() : null;
+      if (last && last.length) {
         items.push({ separator: true });
-        var cur = this.current(app);
-
-        var recent = this.recent();
-        items.push({
-          label: 'Recent',
-          items: recent.length
-            ? recent.map(openItem)
-            : [{ label: '(nothing opened yet)' }],
-        });
-
-        items.push({
-          label: plural().charAt(0).toUpperCase() + plural().slice(1),
-          items: byName(docs).map(function (doc) {
-            var item = openItem(doc);
-            item.label = (doc.path === cur ? '• ' : '\u2007 ') + doc.name;
-            return item;
-          }),
-        });
+        last.forEach(function (it) { items.push(it); });
       }
 
       /** A copy in name order — store order is arrival order, which is no order. */
